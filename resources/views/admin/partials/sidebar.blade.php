@@ -13,16 +13,21 @@
         <a class="nav-link {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}" href="{{ route('admin.categories.index') }}">
             <i class="bi bi-tags"></i>Categories
         </a>
-        <a class="nav-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}" href="#">
-            <i class="bi bi-box-seam"></i>Products
-        </a>
+<a class="nav-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}" href="{{ route('admin.products.index') }}">
+      <i class="bi bi-box-seam"></i>Products
+    </a>
 @if(auth()->check() && auth()->user()->is_super)
     <div class="nav-label">Security & Access</div>
     <a class="nav-link {{ request()->routeIs('admin.admins.*') ? 'active' : '' }}" href="{{ route('admin.admins.index') }}">
         <i class="bi bi-shield-lock"></i>Admins Management
     </a>
 @endif
-        
+
+<div class="nav-label">Users & Customers</div>
+<a class="nav-link {{ request()->routeIs('admin.customers.*') ? 'active' : '' }}" href="{{ route('admin.customers.index') }}">
+    <i class="bi bi-people"></i>Customers
+</a>
+
         <div class="nav-label">Site</div>
         <a class="nav-link" href="{{ route('catalog.index') }}" target="_blank">
             <i class="bi bi-globe2"></i>View website
