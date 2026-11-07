@@ -13,6 +13,7 @@ protected $fillable = [
         'image',
         'description',
         'is_active',
+        'parent_id'
     ];
 
     protected function casts(): array
@@ -23,8 +24,22 @@ protected $fillable = [
     }
 
 
+    public function parent()
+    {
+        return $this->belongsTo(Category::class, 'parent_id');
+    }
+    public function children()
+    {
+        return $this->hasMany(Category::class, 'parent_id');
+    }
+
    public function products()
-{
+   {
     return $this->hasMany(Product::class);
+   }
+
+   public function getRouteKeyName()
+{
+    return 'slug';
 }
 }

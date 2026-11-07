@@ -9,10 +9,19 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Middleware\SuperAdminMiddleware;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\OrderController;
+use App\Models\Category;
+
+// Route::get('/', function () {
+//     return view('auth.login');
+// })->name('catalog.index'); 
 
 Route::get('/', function () {
-    return view('auth.login');
-})->name('catalog.index'); 
+    $categories = Category::withCount('products')->get();    
+    return view('welcome', compact('categories'));
+})->name('catalog.index');
+
+
 
 // مسارات الملف الشخصي (Profile)
 Route::middleware('auth')->group(function () {
@@ -26,18 +35,30 @@ Route::middleware(['auth', AdminMiddleware::class])->prefix('admin')->name('admi
     
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-    Route::resource('categories', CategoryController::class)->except(['create', 'show', 'edit']);
+// استثنينا الـ show من الـ resource عشان نعمله بشكل صريح ومضبوط بالـ admin prefix
+Route::resource('categories', CategoryController::class)
+    ->except(['create', 'show', 'edit'])
+    ->parameters(['categories' => 'category:slug']);
+
+
     Route::resource('customers', CustomerController::class)->only(['index', 'destroy']);
 
-    // مسارات المنتجات الصحيحة (بدون تكرار prefix)
-    Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-    Route::post('/products', [ProductController::class, 'store'])->name('products.store');
-    Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+    Route::resource('products', ProductController::class)->except(['create', 'show', 'edit']);
+
+    Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+    Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+    Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
+    Route::delete('/orders/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
 });
 
 // مسارات السوبر أدمن فقط
 Route::middleware(['auth', SuperAdminMiddleware::class])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('admins', AdminUserController::class)->except(['create', 'show', 'edit']);
 });
+
+// front end
+
+// مسار عرض القسم للعامة أو الزوار
+Route::get('categories/{category:slug}', [CategoryController::class, 'show'])->name('categories.show');
 
 require __DIR__.'/auth.php';

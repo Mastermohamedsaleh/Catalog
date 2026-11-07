@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="card-soft mb-4">
-    <!-- Header & Add Button (بدون شريط بحث) -->
+    <!-- Header & Add Button -->
     <div class="p-3 p-lg-4 border-bottom d-flex justify-content-between align-items-center gap-3">
         <h2 class="h6 fw-bold mb-0">All categories</h2>
         
@@ -21,6 +21,7 @@
                 <tr>
                     <th>#</th>
                     <th>Category</th>
+                    <th>Parent Category</th>
                     <th class="d-none d-md-table-cell">Description</th>
                     <th>Products</th>
                     <th>Status</th>
@@ -40,6 +41,13 @@
                                 @endif
                                 <span class="fw-semibold">{{ $category->name }}</span>
                             </div>
+                        </td>
+                        <td>
+                            @if($category->parent)
+                                <span class="badge bg-light text-dark border">{{ $category->parent->name }}</span>
+                            @else
+                                <span class="text-muted small">— Main Category —</span>
+                            @endif
                         </td>
                         <td class="d-none d-md-table-cell text-muted">{{ Str::limit($category->description, 50) ?? '—' }}</td>
                         <td>{{ $category->products_count ?? 0 }}</td>
@@ -69,7 +77,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">No categories found.</td>
+                        <td colspan="7" class="text-center text-muted py-4">No categories found.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -87,7 +95,7 @@
     @endif
 </div>
 
-<!-- مودالات التعديل والإضافة تظل كما هي في نهاية الملف -->
+<!-- مودالات التعديل -->
 @foreach($categories as $category)
 <div class="modal fade" id="editCategoryModal{{ $category->id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -103,6 +111,20 @@
                     <label class="form-label small fw-semibold">Name <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="name" value="{{ $category->name }}" required>
                 </div>
+
+                <!-- اختيار القسم الرئيسي أثناء التعديل -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Parent Category</label>
+                    <select name="parent_id" class="form-control">
+                        <option value="">-- Main Category (No Parent) --</option>
+                        @foreach(\App\Models\Category::whereNull('parent_id')->where('id', '!=', $category->id)->get() as $mainCat)
+                            <option value="{{ $mainCat->id }}" {{ $category->parent_id == $mainCat->id ? 'selected' : '' }}>
+                                {{ $mainCat->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Description</label>
                     <textarea class="form-control" name="description" rows="3" maxlength="300">{{ $category->description }}</textarea>
@@ -134,6 +156,7 @@
 </div>
 @endforeach
 
+<!-- مودال الإضافة -->
 <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="catTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
     <form action="{{ route('admin.categories.store') }}" method="POST" enctype="multipart/form-data" class="modal-content border-0 rounded-4 shadow-lg needs-validation" novalidate>
@@ -147,6 +170,18 @@
           <label for="catName" class="form-label small fw-semibold">Name <span class="text-danger">*</span></label>
           <input type="text" class="form-control" id="catName" name="name" placeholder="e.g. Electronics" required>
         </div>
+
+        <!-- اختيار القسم الرئيسي عند الإضافة -->
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Parent Category (Optional)</label>
+          <select name="parent_id" class="form-control">
+              <option value="">-- Main Category (No Parent) --</option>
+              @foreach(\App\Models\Category::whereNull('parent_id')->get() as $mainCat)
+                  <option value="{{ $mainCat->id }}">{{ $mainCat->name }}</option>
+              @endforeach
+          </select>
+        </div>
+
         <div class="mb-3">
           <label for="catDesc" class="form-label small fw-semibold">Description</label>
           <textarea class="form-control" id="catDesc" name="description" rows="3" maxlength="300" placeholder="Short description…"></textarea>

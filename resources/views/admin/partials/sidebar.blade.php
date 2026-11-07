@@ -16,6 +16,10 @@
 <a class="nav-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}" href="{{ route('admin.products.index') }}">
       <i class="bi bi-box-seam"></i>Products
     </a>
+        </a>
+<a class="nav-link {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}" href="{{ route('admin.orders.index') }}">
+      <i class="bi bi-box-seam"></i>Orders
+    </a>
 @if(auth()->check() && auth()->user()->is_super)
     <div class="nav-label">Security & Access</div>
     <a class="nav-link {{ request()->routeIs('admin.admins.*') ? 'active' : '' }}" href="{{ route('admin.admins.index') }}">

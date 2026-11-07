@@ -21,7 +21,7 @@ $table->id();
         $table->string('slug')->unique();
         $table->text('description')->nullable();
         $table->decimal('price', 10, 2);
-        
+        $table->integer('stock')->default(0);
         // الميديا والملفات الجاهزة للتحميل
         $table->string('main_image')->nullable();
         $table->json('gallery_images')->nullable(); // لتخزين أكتر من صورة

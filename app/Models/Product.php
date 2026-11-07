@@ -11,17 +11,33 @@ class Product extends Model
 
 
 protected $fillable = [
+    'category_id',
     'name',
     'slug',
-    'category_id',
-    'price',
     'description',
-    'main_image',
-    'video_url',
+    'price',
+    'stock',
+    'main_image',      // الاسم الحقيقي في قاعدة البيانات
+    'gallery_images',
+    'downloadable_file',
+    'video_url',       // الاسم الحقيقي في قاعدة البيانات
     'is_active',
 ];
 public function category()
 {
     return $this->belongsTo(Category::class);
 }
+
+
+public function images()
+{
+    return $this->hasMany(ProductImage::class);
+}
+
+public function variants()
+{
+    return $this->hasMany(ProductVariant::class);
+}
+
+
 }
