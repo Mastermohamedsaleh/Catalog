@@ -21,13 +21,24 @@ class ProductController extends Controller
         $this->mediaService = $mediaService;
     }
 
-    public function index()
-    {
-        $products = Product::with('category', 'images', 'variants')->latest()->paginate(10);
-        $categories = Category::all();
+public function index(Request $request)
+{
+    $query = Product::with('category', 'images', 'variants')->latest();
 
-        return view('admin.products.index', compact('products', 'categories'));
+    // تفعيل البحث بالاسم أو الوصف
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function($q) use ($search) {
+            $q->where('name', 'like', "%{$search}%")
+              ->orWhere('description', 'like', "%{$search}%");
+        });
     }
+
+    $products = $query->paginate(10);
+    $categories = Category::all();
+
+    return view('admin.products.index', compact('products', 'categories'));
+}
 
     public function store(Request $request)
     {
@@ -41,6 +52,16 @@ class ProductController extends Controller
             'video_url'   => 'nullable|mimes:mp4,mov,avi,wmv|max:10240',     
             'description' => 'nullable|string',
         ]);
+
+        // التحقق من تطابق مجموع الاستوك للمتغيرات مع الاستوك الأساسي لو المنتج مفعل له متغيرات
+        if ($request->has('has_variants') && $request->has('variants')) {
+            $totalVariantStock = collect($request->variants)->sum('stock');
+            if ($totalVariantStock != $request->stock) {
+                return back()->withInput()->withErrors([
+                    'stock' => "مجموع مخزون المقاسات والألوان ($totalVariantStock) يجب أن يساوي المخزون الإجمالي للمنتج ({$request->stock})!"
+                ]);
+            }
+        }
 
         // رفع وتحسين الصورة الرئيسية باستخدام الـ MediaService
         $imagePath = null;
@@ -118,6 +139,16 @@ class ProductController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        // التحقق من تطابق الاستوك أثناء التعديل أيضاً
+        if ($request->has('has_variants') && $request->has('variants')) {
+            $totalVariantStock = collect($request->variants)->sum('stock');
+            if ($totalVariantStock != $request->stock) {
+                return back()->withInput()->withErrors([
+                    'stock' => "مجموع مخزون المقاسات والألوان ($totalVariantStock) يجب أن يساوي المخزون الإجمالي للمنتج ({$request->stock})!"
+                ]);
+            }
+        }
+
         $imagePath = $product->main_image;
         if ($request->hasFile('main_image')) {
             $this->mediaService->deleteFile($product->main_image);
@@ -130,7 +161,7 @@ class ProductController extends Controller
             $videoPath = $this->mediaService->uploadFile($request->file('video_url'), 'products/videos');
         }
 
-        // توليد Slug فريد أثناء التحديث (مع استثناء المنتج الحالي نفسه عشان ميعترضش مع نفسه)
+        // توليد Slug فريد أثناء التحديث (مع استثناء المنتج الحالي نفسه)
         $slug = Str::slug($request->name);
         $originalSlug = $slug;
         $count = 1;
@@ -209,4 +240,19 @@ class ProductController extends Controller
         
         return redirect()->route('admin.products.index')->with('success', 'تم حذف المنتج وملفاته ومتغيراته بنجاح.');
     }
+
+// Delete One Image from Galley
+    public function destroyImage(ProductImage $image)
+{
+    // حذف الملف من التخزين
+    if ($image->image_path) {
+        $this->mediaService->deleteFile($image->image_path);
+    }
+    
+    // حذف السجل من قاعدة البيانات
+    $image->delete();
+
+    return back()->with('success', 'تم حذف الصورة من المعرض بنجاح.');
+}
+
 }

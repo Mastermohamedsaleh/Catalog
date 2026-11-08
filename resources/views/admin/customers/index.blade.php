@@ -5,12 +5,21 @@
 
 @section('content')
 <div class="card-soft mb-4">
-    <!-- Header -->
-    <div class="p-3 p-lg-4 border-bottom d-flex justify-content-between align-items-center gap-3">
+    <!-- Header & Search -->
+    <div class="p-3 p-lg-4 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
         <div>
             <h2 class="h6 fw-bold mb-0">Registered Customers</h2>
             <p class="text-muted small mb-0">View and manage regular users registered on your store.</p>
         </div>
+
+        <!-- فورم البحث المباشر للعملاء -->
+        <form action="{{ route('admin.customers.index') }}" method="GET" class="d-flex gap-2 w-100 w-md-auto" style="max-width: 350px;">
+            <input type="text" name="search" class="form-control form-control-sm" placeholder="Search by name, email..." value="{{ request('search') }}">
+            <button type="submit" class="btn btn-outline-secondary btn-sm text-nowrap"><i class="bi bi-search"></i></button>
+            @if(request('search'))
+                <a href="{{ route('admin.customers.index') }}" class="btn btn-outline-danger btn-sm" title="Clear Search"><i class="bi bi-x-lg"></i></a>
+            @endif
+        </form>
     </div>
 
     <!-- رسائل التنبيه -->
@@ -59,7 +68,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">No regular customers registered yet.</td>
+                        <td colspan="5" class="text-center text-muted py-4">No regular customers found.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -71,7 +80,7 @@
         <div class="p-3 d-flex justify-content-between align-items-center small text-muted border-top">
             <span>Showing {{ $customers->firstItem() ?? 0 }}–{{ $customers->lastItem() ?? 0 }} of {{ $customers->total() }}</span>
             <div>
-                {{ $customers->links() }}
+                {{ $customers->appends(request()->query())->links() }}
             </div>
         </div>
     @endif

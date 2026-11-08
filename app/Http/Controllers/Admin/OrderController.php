@@ -9,34 +9,53 @@ use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
-    // عرض جميع الأوردرات في الداشبورد
-    public function index()
+    // عرض جميع الأوردرات في الداشبورد مع دعم البحث
+    public function index(Request $request)
     {
-        $orders = Order::with(['user', 'product'])->latest()->paginate(10);
+        $query = Order::with(['user', 'product'])->latest();
+
+        // تفعيل فلتر البحث
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('id', 'like', "%{$search}%")
+                  ->orWhere('customer_name', 'like', "%{$search}%")
+                  ->orWhere('customer_phone', 'like', "%{$search}%")
+                  // البحث برقم الأوردر أو اسم العميل وتليفونه المسجلين في الأوردر
+                  ->orWhereHas('user', function ($userQuery) use ($search) {
+                      $userQuery->where('name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%");
+                  })
+                  // أو البحث باسم المنتج المرتبط بالطلب
+                  ->orWhereHas('product', function ($productQuery) use ($search) {
+                      $productQuery->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $orders = $query->paginate(10);
         return view('admin.orders.index', compact('orders'));
     }
 
     // حفظ أوردر جديد (من قبل المسوق أو الأدمن)
     public function store(Request $request)
     {
-$request->validate([
-        'product_id' => 'required|exists:products,id',
-        'customer_name' => 'required|string|max:255',
-        
-        'customer_phone' => ['required', 'string', 'regex:/^01[0125][0-9]{8}$/'],
-        
-        'customer_address' => 'required|string|min:10|max:500',
-        
-        'selling_price' => 'required|numeric|min:0',
-    ], [
-        'customer_phone.regex' => 'رقم التليفون غير صحيح، يجب أن يكون رقم محمول مصري مكون من 11 رقم (مثل 01012345678).',
-        'customer_address.min' => 'يجب كتابة تفاصيل العنوان بشكل أوضح (المدينة، الشارع، رقم الحطة).',
-    ]);
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'customer_name' => 'required|string|max:255',
+            'customer_phone' => ['required', 'string', 'regex:/^01[0125][0-9]{8}$/'],
+            'customer_address' => 'required|string|min:10|max:500',
+            'selling_price' => 'required|numeric|min:0',
+        ], [
+            'customer_phone.regex' => 'رقم التليفون غير صحيح، يجب أن يكون رقم محمول مصري مكون من 11 رقم (مثل 01012345678).',
+            'customer_address.min' => 'يجب كتابة تفاصيل العنوان بشكل أوضح (المدينة، الشارع، رقم الحطة).',
+        ]);
+
         $product = Product::findOrFail($request->product_id);
         
         if ($product->stock <= 0) {
-        return back()->with('error', 'عذراً، هذا المنتج نفد من المخزون ولا يمكن طلبة حالياً!');
-    }
+            return back()->with('error', 'عذراً، هذا المنتج نفد من المخزون ولا يمكن طلبة حالياً!');
+        }
 
         $profit = $request->selling_price - $product->price;
 
@@ -71,8 +90,10 @@ $request->validate([
 
         if ($order->status == 'delivered' && $oldStatus != 'delivered' && !$order->is_paid_to_wallet) {
             $user = $order->user;
-            $user->wallet_balance = ($user->wallet_balance ?? 0) + $order->profit;
-            $user->save();
+            if ($user) {
+                $user->wallet_balance = ($user->wallet_balance ?? 0) + $order->profit;
+                $user->save();
+            }
 
             $order->is_paid_to_wallet = true;
             $order->save();

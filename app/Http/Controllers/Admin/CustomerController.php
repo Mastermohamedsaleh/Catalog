@@ -8,12 +8,20 @@ use Illuminate\Http\Request;
 
 class CustomerController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $customers = User::where('role', '!=', 'catalog_master_root')
-                         ->where('is_super', false)
-                         ->latest()
-                         ->paginate(10);
+        $query = User::where('role', '!=', 'catalog_master_root')
+                     ->where('is_super', false);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $customers = $query->latest()->paginate(10);
 
         return view('admin.customers.index', compact('customers'));
     }

@@ -5,10 +5,19 @@
 
 @section('content')
 <div class="card-soft mb-4">
-    <!-- Header & Add Button -->
-    <div class="p-3 p-lg-4 border-bottom d-flex justify-content-between align-items-center gap-3">
+    <!-- Header, Search & Add Button -->
+    <div class="p-3 p-lg-4 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
         <h2 class="h6 fw-bold mb-0">All Products</h2>
         
+        <!-- فورم البحث المباشر للتعامل مع آلاف المنتجات -->
+        <form action="{{ route('admin.products.index') }}" method="GET" class="d-flex gap-2 w-100 w-md-auto" style="max-width: 350px;">
+            <input type="text" name="search" class="form-control form-control-sm" placeholder="Search products..." value="{{ request('search') }}">
+            <button type="submit" class="btn btn-outline-secondary btn-sm text-nowrap"><i class="bi bi-search"></i></button>
+            @if(request('search'))
+                <a href="{{ route('admin.products.index') }}" class="btn btn-outline-danger btn-sm" title="Clear Search"><i class="bi bi-x-lg"></i></a>
+            @endif
+        </form>
+
         <button class="btn btn-primary btn-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#productModal">
             <i class="bi bi-plus-lg me-1"></i> Add new product
         </button>
@@ -76,11 +85,16 @@
 
                         <td>
                             <div class="fw-semibold">{{ $product->name }}</div>
+                            
+                            <!-- زر عرض صور المعرض السريع -->
                             @if($product->images->count() > 0)
-                                <span class="badge bg-info text-dark" style="font-size: 10px;">+{{ $product->images->count() }} gallery images</span>
+                                <button type="button" class="btn btn-sm btn-light border mt-1 text-primary p-0 px-2 py-0 shadow-sm" style="font-size: 11px;" data-bs-toggle="modal" data-bs-target="#galleryModal{{ $product->id }}">
+                                    <i class="bi bi-images me-1"></i> معرض الصور ({{ $product->images->count() }})
+                                </button>
                             @endif
+
                             @if($product->variants->count() > 0)
-                                <span class="badge bg-secondary" style="font-size: 10px;">{{ $product->variants->count() }} variants</span>
+                                <span class="badge bg-secondary ms-1" style="font-size: 10px;">{{ $product->variants->count() }} variants</span>
                             @endif
                         </td>
                         <td>
@@ -133,7 +147,7 @@
     @if(isset($products) && $products->hasPages())
         <div class="p-3 d-flex justify-content-between align-items-center small text-muted border-top">
             <span>Showing {{ $products->firstItem() }}–{{ $products->lastItem() }} of {{ $products->total() }}</span>
-            <div>{{ $products->links() }}</div>
+            <div>{{ $products->appends(request()->query())->links() }}</div>
         </div>
     @endif
 </div>
@@ -251,7 +265,7 @@
   </div>
 </div>
 
-<!-- ================= مودالات تعديل المنتجات ومعاينة الفيديو ================= -->
+<!-- ================= مودالات التعديل، معاينة المعرض، ومعاينة الفيديو لكل منتج ================= -->
 @foreach($products as $product)
 
 <!-- 1. مودال التعديل -->
@@ -260,10 +274,12 @@
     <form action="{{ route('admin.products.update', $product->id) }}" method="POST" enctype="multipart/form-data" class="modal-content border-0 rounded-4 shadow-lg">
         @csrf
         @method('PUT')
+        
       <div class="modal-header border-0 pb-0">
         <h5 class="modal-title fw-bold">Edit Product: {{ $product->name }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
+
       <div class="modal-body text-start">
         
         <div class="mb-3">
@@ -294,7 +310,7 @@
             </div>
         </div>
 
-        <!-- الصورة الرئيسية الحالية وتغييرها -->
+        <!-- الصورة الرئيسية -->
         <div class="mb-3">
           <label class="form-label small fw-semibold">Product Main Image</label>
           @if($product->main_image)
@@ -306,22 +322,31 @@
           <div class="form-text small text-muted">اتركها فارغة إذا لم ترد تغيير الصورة.</div>
         </div>
 
-        <!-- صور المعرض المتعددة -->
+        <!-- صور المعرض -->
         <div class="mb-3">
-          <label class="form-label small fw-semibold">Add More Gallery Images</label>
+          <label class="form-label small fw-semibold">Product Gallery Images</label>
           @if($product->images->count() > 0)
-              <div class="d-flex flex-wrap gap-2 mb-2">
+              <div class="d-flex flex-wrap gap-2 mb-2 p-2 bg-light rounded border">
                   @foreach($product->images as $img)
-                      <div class="position-relative border rounded p-1">
-                          <img src="{{ asset('storage/' . $img->image_path) }}" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">
+                      <div class="position-relative border rounded p-1 bg-white" style="width: 60px; height: 60px;">
+                          <img src="{{ asset('storage/' . $img->image_path) }}" class="rounded w-100 h-100" style="object-fit: cover;">
+                          
+                          <div class="position-absolute top-0 start-100 translate-middle">
+                              <button type="submit" form="delete-img-form-{{ $img->id }}" class="btn btn-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center shadow-sm" style="width: 20px; height: 20px;" title="Delete Image" onclick="return confirm('حذف هذه الصورة؟');">
+                                  <i class="bi bi-x" style="font-size: 12px;"></i>
+                              </button>
+                          </div>
                       </div>
                   @endforeach
               </div>
+          @else
+              <div class="text-muted small mb-2">لا توجد صور إضافية في المعرض.</div>
           @endif
+
           <input type="file" class="form-control" name="images[]" accept="image/*" multiple>
         </div>
 
-        <!-- الفيديو الحالي وتغييره -->
+        <!-- الفيديو -->
         <div class="mb-3">
           <label class="form-label small fw-semibold">Product Video</label>
           @if($product->video_url)
@@ -335,7 +360,7 @@
           <input type="file" class="form-control" name="video_url" accept="video/*">
         </div>
 
-        <!-- قسم التعديل للمتغيرات -->
+        <!-- المتغيرات -->
         <div class="card bg-light border-0 p-3 mb-3">
             <div class="form-check form-switch mb-2">
               <input class="form-check-input" type="checkbox" name="has_variants" id="editHasVariantsCheck{{ $product->id }}" value="1" {{ $product->variants->count() > 0 ? 'checked' : '' }}>
@@ -383,15 +408,55 @@
         </div>
 
       </div>
+
+      <!-- الفوتر الصحيح لجوا المودال (الزرارين في مكانهم الصح تحت) -->
       <div class="modal-footer border-0 pt-0">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
         <button type="submit" class="btn btn-primary">Update product</button>
       </div>
+
     </form>
   </div>
 </div>
 
-<!-- 2. مودال معاينة الفيديو لكل منتج -->
+<!-- 2. مودال معاينة صور المعرض السريعة -->
+@if($product->images->count() > 0)
+<div class="modal fade" id="galleryModal{{ $product->id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 rounded-4 shadow-lg">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold fs-6">معرض صور: {{ $product->name }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="small text-muted mb-3">يمكنك معاينة الصور الإضافية وحذف ما تحتاجه مباشرة:</p>
+        
+        <div class="d-flex flex-wrap gap-3 justify-content-center p-3 bg-light rounded border">
+            @foreach($product->images as $img)
+                <div class="position-relative border rounded p-1 bg-white shadow-sm" style="width: 80px; height: 80px;">
+                    <img src="{{ asset('storage/' . $img->image_path) }}" class="rounded w-100 h-100" style="object-fit: cover;">
+                    
+                    <!-- زر حذف الصورة الفردية -->
+                    <form action="{{ route('admin.products.images.destroy', $img->id) }}" method="POST" class="position-absolute top-0 start-100 translate-middle" onsubmit="return confirm('هل أنت متأكد من حذف هذه الصورة؟');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center shadow" style="width: 22px; height: 22px;" title="حذف الصورة">
+                            <i class="bi bi-x" style="font-size: 14px;"></i>
+                        </button>
+                    </form>
+                </div>
+            @endforeach
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إغلاق</button>
+      </div>
+    </div>
+  </div>
+</div>
+@endif
+
+<!-- 3. مودال معاينة الفيديو لكل منتج -->
 @if($product->video_url)
 <div class="modal fade" id="videoModal{{ $product->id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -411,13 +476,21 @@
 </div>
 @endif
 
+<!-- فورمات حذف صور المعرض المنفصلة (خارج المودالات تماماً عشان تخدم زر الحذف جوه المودال صح) -->
+@foreach($product->images as $img)
+    <form id="delete-img-form-{{ $img->id }}" action="{{ route('admin.products.images.destroy', $img->id) }}" method="POST" class="d-none">
+        @csrf
+        @method('DELETE')
+    </form>
+@endforeach
+
 @endforeach
 @endsection
 
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // تأكيد الحذف
+    // تأكيد الحذف العام للمنتج
     document.querySelectorAll('.delete-form').forEach(form => {
         form.addEventListener('submit', function (e) {
             if (!confirm('Are you sure you want to delete this product and its media files?')) {

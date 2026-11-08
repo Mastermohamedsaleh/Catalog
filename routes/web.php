@@ -5,11 +5,13 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\FrontendController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Middleware\SuperAdminMiddleware;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\OrderController;
+
 use App\Models\Category;
 
 // Route::get('/', function () {
@@ -45,6 +47,11 @@ Route::resource('categories', CategoryController::class)
 
     Route::resource('products', ProductController::class)->except(['create', 'show', 'edit']);
 
+
+    // Delete One image from gallery 
+Route::delete('/product-images/{image}', [ProductController::class, 'destroyImage'])->name('products.images.destroy');
+
+
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
     Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
@@ -59,6 +66,54 @@ Route::middleware(['auth', SuperAdminMiddleware::class])->prefix('admin')->name(
 // front end
 
 // مسار عرض القسم للعامة أو الزوار
-Route::get('categories/{category:slug}', [CategoryController::class, 'show'])->name('categories.show');
+// Route::get('categories/{category:slug}', [CategoryController::class, 'show'])->name('categories.show');
+
+
+
+
+// Frontend
+Route::middleware(['auth'])->group(function () {
+
+
+    Route::get('/categories', [FrontendController::class, 'allCategories'])->name('shop.categories.index');
+
+
+    // عرض تفاصيل القسم (سواء رئيسي أو فرعي) والمنتجات اللي جواها
+    Route::get('/category/{slug}', [FrontendController::class, 'showCategory'])->name('shop.category');
+    
+    // صفحة تفاصيل المنتج الفردي (صور، فديوهات، تفاصيل)
+    Route::get('/product/{id}', [FrontendController::class, 'showProduct'])->name('shop.product.show');
+});
+
+
+
+
+Route::middleware(['auth'])->prefix('merchant')->name('merchant.')->group(function () {
+    // صفحة الأوردرات ونموذج إضافة أوردر جديد
+    Route::get('/orders', [App\Http\Controllers\Merchant\OrderController::class, 'index'])->name('orders.index');
+    
+    // حفظ الأوردر الجديد في الداتا بيز وخصم الاستوك
+    Route::post('/orders', [App\Http\Controllers\Merchant\OrderController::class, 'store'])->name('orders.store');
+    
+    // مسار البحث اللحظي عن المنتجات والمقاسات (AJAX Search)
+    Route::get('/products-search', [App\Http\Controllers\Merchant\OrderController::class, 'searchProducts'])->name('products.search');
+    
+    // صفحة المحفظة الخاصة بالتاجر
+    Route::get('/wallet', function () {
+        // جلب أوردرات التاجر وحساب الأرباح المعلقة والمتاحة من قاعدة البيانات
+        $orders = \App\Models\Order::where('user_id', auth()->id())->latest()->get();
+        $availableBalance = auth()->user()->wallet ?? 0;
+        $pendingProfit = $orders->where('is_paid_to_wallet', false)->whereNotIn('status', ['returned', 'cancelled'])->sum('profit');
+        $deliveredCount = $orders->where('status', 'delivered')->count();
+        $lostCount = $orders->whereIn('status', ['returned', 'cancelled'])->count();
+
+        return view('merchant.wallet', compact('orders', 'availableBalance', 'pendingProfit', 'deliveredCount', 'lostCount'));
+    })->name('wallet');
+});
+
+
+
+
+
 
 require __DIR__.'/auth.php';

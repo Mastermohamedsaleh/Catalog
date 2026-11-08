@@ -5,10 +5,19 @@
 
 @section('content')
 <div class="card-soft mb-4">
-    <!-- Header & Add Button -->
-    <div class="p-3 p-lg-4 border-bottom d-flex justify-content-between align-items-center gap-3">
+    <!-- Header, Search & Add Button -->
+    <div class="p-3 p-lg-4 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
         <h2 class="h6 fw-bold mb-0">All orders</h2>
         
+        <!-- فورم البحث المباشر للطلبات -->
+        <form action="{{ route('admin.orders.index') }}" method="GET" class="d-flex gap-2 w-100 w-md-auto" style="max-width: 350px;">
+            <input type="text" name="search" class="form-control form-control-sm" placeholder="Search ID, customer name, phone..." value="{{ request('search') }}">
+            <button type="submit" class="btn btn-outline-secondary btn-sm text-nowrap"><i class="bi bi-search"></i></button>
+            @if(request('search'))
+                <a href="{{ route('admin.orders.index') }}" class="btn btn-outline-danger btn-sm" title="Clear Search"><i class="bi bi-x-lg"></i></a>
+            @endif
+        </form>
+
         <button class="btn btn-primary btn-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#orderModal">
             <i class="bi bi-plus-lg me-1"></i> Add new order
         </button>
@@ -28,6 +37,13 @@
         <div class="alert alert-danger m-3 mb-0 rounded-3 shadow-sm border-0 d-flex align-items-center" role="alert">
             <i class="bi bi-x-circle-fill fs-5 me-2"></i>
             <div>{{ session('error') }}</div>
+        </div>
+    @endif
+
+    @if (session('success'))
+        <div class="alert alert-success m-3 mb-0 rounded-3 shadow-sm border-0 d-flex align-items-center" role="alert">
+            <i class="bi bi-check-circle-fill fs-5 me-2"></i>
+            <div>{{ session('success') }}</div>
         </div>
     @endif
 
@@ -114,7 +130,7 @@
         <div class="p-3 d-flex justify-content-between align-items-center small text-muted border-top">
             <span>Showing {{ $orders->firstItem() ?? 0 }}–{{ $orders->lastItem() ?? 0 }} of {{ $orders->total() }}</span>
             <div>
-                {{ $orders->links() }}
+                {{ $orders->appends(request()->query())->links() }}
             </div>
         </div>
     @endif
