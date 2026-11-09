@@ -28,11 +28,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-    if ($request->user()->isAdmin()) {
-        return redirect()->intended(route('admin.dashboard'));
-    }
+        if ($request->user()->isAdmin()) {
+            return redirect()->intended(route('admin.dashboard'));
+        }
 
-    return redirect()->intended(route('catalog.index'));
+        return redirect()->intended(route('catalog.index'));
     }
 
     /**
@@ -49,3 +49,6 @@ class AuthenticatedSessionController extends Controller
         return redirect('/');
     }
 }
+
+
+

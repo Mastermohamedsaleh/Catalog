@@ -38,7 +38,7 @@
     <button class="btn btn-light d-lg-none" data-sidebar-toggle aria-label="Menu"><i class="bi bi-list fs-5"></i></button>
     <h1 class="h5 fw-bold mb-0 me-auto">New order</h1>
     <a href="{{ route('merchant.wallet') }}" class="btn btn-light btn-sm d-flex align-items-center gap-2" title="Wallet balance">
-      <i class="bi bi-wallet2 text-primary"></i><span class="fw-semibold">{{ Auth::user()->wallet ?? 0 }} EGP</span>
+      <i class="bi bi-wallet2 text-primary"></i><span class="fw-semibold">{{ \App\Models\Order::where('user_id', Auth::id())->where('status', 'delivered')->sum('profit') }} EGP</span>
     </a>
     <div class="dropdown">
       <a href="#" class="d-flex align-items-center gap-2 text-dark" data-bs-toggle="dropdown">
@@ -73,18 +73,18 @@
     @endif
 
     <!-- ============ ORDER FORM ============ -->
-    <form action="{{ route('merchant.orders.store') }}" method="POST" id="orderForm" class="card-soft p-3 p-lg-4 mb-4 needs-validation" novalidate>
+    <form action="{{ route('merchant.orders.store') }}" method="POST" id="orderForm" class="card-soft p-3 p-lg-4 mb-4">
       @csrf
       <div class="d-flex align-items-center gap-2 mb-1"><i class="bi bi-person-lines-fill text-primary fs-5"></i><h2 class="h5 fw-bold mb-0">Customer &amp; order details</h2></div>
       <p class="text-muted small mb-4">Fill in your customer's data. The order is sent to the admin for confirmation.</p>
 
       <div class="row g-3">
-        <!-- البحث عن المنتج (Live Search) -->
+        <!-- البحث عن المنتج (Local Fast Search) -->
         <div class="col-md-6 position-relative">
           <label for="productSearch" class="form-label small fw-semibold">Search Product <span class="text-danger">*</span></label>
           <input type="text" class="form-control" id="productSearch" placeholder="Type product name..." autocomplete="off" required>
-          <input type="hidden" id="productId" name="product_id" required>
-          <div id="searchResults" class="list-group position-absolute w-100 shadow-sm" style="z-index: 1000; max-height: 200px; overflow-y: auto; display: none;"></div>
+          <input type="hidden" id="productId" name="product_id">
+          <div id="searchResults" class="list-group position-absolute w-100 shadow-sm" style="z-index: 1000; max-height: 220px; overflow-y: auto; display: none;"></div>
           <div class="invalid-feedback">Please choose a valid product from the list.</div>
         </div>
 
@@ -99,7 +99,7 @@
         <!-- الكمية (Quantity) -->
         <div class="col-6 col-md-3">
           <label for="qty" class="form-label small fw-semibold">Quantity <span class="text-danger">*</span></label>
-          <input type="number" class="form-control" id="qty" name="quantity" min="1" step="1" value="1" required>
+          <input type="number" class="form-control" id="qty" name="stock" min="1" step="1" value="1" required>
           <div class="form-text" id="stockHint">Select a product first</div>
           <div class="invalid-feedback">Enter a valid quantity within available stock.</div>
         </div>
@@ -186,12 +186,25 @@
                       <td class="d-none d-xxl-table-cell small text-muted">{{ $order->customer_address }}</td>
                       <td>{{ $order->product_price }} EGP</td>
                       <td>{{ $order->selling_price }} EGP</td>
-                      <td>{{ $order->quantity }}</td>
+                      <td>{{ $order->stock }}</td>
                       <td class="fw-bold text-success">+{{ $order->profit }} EGP</td>
                       <td>
-                          @if($order->status == 'pending') <span class="badge badge-soft-warning">Pending</span>
-                          @elseif($order->status == 'delivered') <span class="badge badge-soft-success">Delivered</span>
-                          @else <span class="badge badge-soft-secondary">{{ ucfirst($order->status) }}</span>
+                          @if($order->status == 'pending') 
+                              <div class="d-flex align-items-center gap-2">
+                                  <span class="badge badge-soft-warning">Pending</span>
+                                  <form action="{{ route('merchant.orders.cancel', $order->id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من إلغاء هذا الأوردر وإعادة المخزون؟');">
+                                      @csrf
+                                      <button type="submit" class="btn btn-outline-danger btn-sm px-2 py-0" style="font-size: 11px; border-radius: 6px; line-height: 1.5;">
+                                          <i class="bi bi-x-circle me-1"></i>Cancel
+                                      </button>
+                                  </form>
+                              </div>
+                          @elseif($order->status == 'delivered') 
+                              <span class="badge badge-soft-success">Delivered</span>
+                          @elseif($order->status == 'cancelled') 
+                              <span class="badge badge-soft-danger">Cancelled</span>
+                          @else 
+                              <span class="badge badge-soft-secondary">{{ ucfirst($order->status) }}</span>
                           @endif
                       </td>
                       <td>
@@ -217,6 +230,11 @@
 <!-- ============ Scripts ============ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ asset('assets/js/app.js') }}"></script>
+
+<script>
+    const allProducts = @json($products);
+</script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('productSearch');
@@ -230,67 +248,73 @@ document.addEventListener('DOMContentLoaded', function () {
     const stockHint = document.getElementById('stockHint');
     const variantContainer = document.getElementById('variantContainer');
     const variantSelect = document.getElementById('variantSelect');
+    const orderForm = document.getElementById('orderForm');
 
-    // 1. البحث اللحظي عن المنتجات
     if (searchInput) {
         searchInput.addEventListener('input', function () {
-            let query = this.value.trim();
+            let query = this.value.trim().toLowerCase();
+            resultsBox.innerHTML = '';
+
             if (query.length < 1) {
                 resultsBox.style.display = 'none';
                 return;
             }
 
-            fetch(`/merchant/products-search?q=${encodeURIComponent(query)}`)
-                .then(response => response.json())
-                .then(data => {
-                    resultsBox.innerHTML = '';
-                    if (data.length > 0) {
-                        resultsBox.style.display = 'block';
-                        data.forEach(product => {
-                            let item = document.createElement('a');
-                            item.href = '#';
-                            item.className = 'list-group-item list-group-item-action small';
-                            item.innerHTML = `<strong>${product.name}</strong> — <span class="text-primary">${product.price} EGP</span> (Stock: ${product.stock})`;
-                            
-                            item.addEventListener('click', function (e) {
-                                e.preventDefault();
-                                searchInput.value = product.name;
-                                productIdInput.value = product.id;
-                                productPriceInput.value = product.price;
-                                
-                                // معالجة المقاسات لو المنتج له Variants
-                                variantSelect.innerHTML = '<option value="">Choose size/color...</option>';
-                                if (product.variants && product.variants.length > 0) {
-                                    variantContainer.style.display = 'block';
-                                    variantSelect.setAttribute('required', 'required');
-                                    product.variants.forEach(variant => {
-                                        let opt = document.createElement('option');
-                                        opt.value = variant.id;
-                                        opt.textContent = `${variant.size} ${variant.color ? '(' + variant.color + ')' : ''} — Stock: ${variant.stock}`;
-                                        opt.setAttribute('data-stock', variant.stock);
-                                        variantSelect.appendChild(opt);
-                                    });
-                                    if(stockHint) stockHint.textContent = `Select a variant size`;
-                                } else {
-                                    variantContainer.style.display = 'none';
-                                    variantSelect.removeAttribute('required');
-                                    qtyInput.max = product.stock;
-                                    if(stockHint) stockHint.textContent = `Available stock: ${product.stock}`;
-                                }
-                                
-                                resultsBox.style.display = 'none';
-                                calculateProfit();
+            let filteredProducts = allProducts.filter(product => 
+                product.name.toLowerCase().includes(query)
+            ).slice(0, 20);
+
+            if (filteredProducts.length > 0) {
+                resultsBox.style.display = 'block';
+                filteredProducts.forEach(product => {
+                    let item = document.createElement('a');
+                    item.href = '#';
+                    item.className = 'list-group-item list-group-item-action small';
+                    item.innerHTML = `<strong>${product.name}</strong> — <span class="text-primary">${product.price} EGP</span> (Stock: ${product.stock})`;
+                    
+                    item.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        searchInput.value = product.name;
+                        productIdInput.value = product.id;
+                        productPriceInput.value = product.price;
+                        
+                        variantSelect.innerHTML = '<option value="">Choose size/color...</option>';
+                        if (product.variants && product.variants.length > 0) {
+                            variantContainer.style.display = 'block';
+                            variantSelect.setAttribute('required', 'required');
+                            product.variants.forEach(variant => {
+                                let opt = document.createElement('option');
+                                opt.value = variant.id;
+                                opt.textContent = `${variant.size} ${variant.color ? '(' + variant.color + ')' : ''} — Stock: ${variant.stock}`;
+                                opt.setAttribute('data-stock', variant.stock);
+                                variantSelect.appendChild(opt);
                             });
-                            resultsBox.appendChild(item);
-                        });
-                    } else {
+                            if(stockHint) stockHint.textContent = `Select a variant size`;
+                        } else {
+                            variantContainer.style.display = 'none';
+                            variantSelect.removeAttribute('required');
+                            variantSelect.value = '';
+                            qtyInput.max = product.stock;
+                            if(stockHint) stockHint.textContent = `Available stock: ${product.stock}`;
+                        }
+                        
                         resultsBox.style.display = 'none';
-                    }
+                        calculateProfit();
+                    });
+                    resultsBox.appendChild(item);
                 });
+            } else {
+                resultsBox.style.display = 'none';
+            }
         });
     }
 
-    // 2. تحديث المخزون الأقصى عند اختيار مقاس معين (Variant)
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !resultsBox.contains(e.target)) {
+            resultsBox.style.display = 'none';
+        }
+    });
+
     if (variantSelect) {
         variantSelect.addEventListener('change', function () {
             const selectedOpt = this.options[this.selectedIndex];
@@ -301,7 +325,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 3. حساب الربح التلقائي
     if (qtyInput || sellingPriceInput) {
         [qtyInput, sellingPriceInput].forEach(input => {
             if (input) input.addEventListener('input', calculateProfit);
@@ -320,14 +343,22 @@ document.addEventListener('DOMContentLoaded', function () {
         if (selling > 0 && totalProfit >= 0) {
             profitText.textContent = totalProfit.toFixed(2) + ' EGP';
             profitInput.value = totalProfit.toFixed(2);
-            sellingPriceInput.setCustomValidity('');
         } else {
             profitText.textContent = '—';
             profitInput.value = '0';
-            if (selling > 0) {
-                sellingPriceInput.setCustomValidity('Selling price must cover product cost.');
-            }
         }
+    }
+
+    if (orderForm) {
+        orderForm.addEventListener('submit', function (e) {
+            const prodId = productIdInput.value;
+            if (!prodId) {
+                e.preventDefault();
+                alert('من فضلك اختر منتجاً صالحاً من قائمة البحث أولاً!');
+                searchInput.focus();
+                return false;
+            }
+        });
     }
 });
 </script>

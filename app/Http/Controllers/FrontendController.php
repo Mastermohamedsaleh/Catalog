@@ -8,46 +8,42 @@ use Illuminate\Http\Request;
 
 class FrontendController extends Controller
 {
+    // جلب أول 8 أقسام فقط للصفحة الرئيسية
+    public function welcome()
+    {
+        $categories = Category::whereNull('parent_id')->withCount('products')->take(8)->get();
+        return view('welcome', compact('categories'));
+    }
 
+    // جلب كل الأقسام لصفحة "View All"
+    public function allCategories()
+    {
+        $allCategories = Category::whereNull('parent_id')->withCount('products')->get();
+        return view('frontend.all-categories', compact('allCategories'));
+    }
 
-
-
-// جلب أول 8 أقسام فقط للصفحة الرئيسية
-public function welcome()
-{
-    $categories = Category::whereNull('parent_id')->withCount('products')->take(8)->get();
-    return view('welcome', compact('categories'));
-}
-
-// جلب كل الأقسام لصفحة "View All"
-public function allCategories()
-{
-    $allCategories = Category::whereNull('parent_id')->withCount('products')->get();
-    return view('frontend.all-categories', compact('allCategories'));
-}
-
-
-    // 1. عرض القسم والأقسام الفرعية التابعة له ومنتجاته
+    // عرض القسم، الأقسام الفرعية، أو المنتجات حسب الهيكل الشجري
     public function showCategory($slug)
     {
-        // جلب القسم الحالي مع أقسامه الفرعية (الأولاد)
+        // جلب القسم الحالي مع أقسامه الفرعية
         $category = Category::with(['children', 'products' => function($q) {
             $q->where('is_active', 1);
         }])->where('slug', $slug)->firstOrFail();
 
-        // لو القسم الرئيسي تحته أقسام فرعية، بنجمع آي دي هات القسم الرئيسي والأقسام الفرعية عشان نعرض كل منتجاتهم
-        $categoryIds = $category->children->pluck('id')->push($category->id);
+        $products = collect();
 
-        // جلب المنتجات التابعة للقسم (والأقسام الفرعية إن وجدت) مع الباجينيشن
-        $products = Product::whereIn('category_id', $categoryIds)
-                           ->where('is_active', 1)
-                           ->latest()
-                           ->paginate(12);
+        // لو القسم ليس لديه أقسام فرعية، نجلب منتجاته مباشرة
+        if ($category->children->count() === 0) {
+            $products = Product::where('category_id', $category->id)
+                               ->where('is_active', 1)
+                               ->latest()
+                               ->paginate(12);
+        }
 
         return view('frontend.category', compact('category', 'products'));
     }
 
-    // 2. عرض تفاصيل المنتج الفردي (الصور، المعرض، الفيديو، المتغيرات)
+    // عرض تفاصيل المنتج الفردي (الصور، المعرض، الفيديو، المتغيرات)
     public function showProduct($id)
     {
         $product = Product::with(['category', 'images', 'variants'])->where('is_active', 1)->findOrFail($id);

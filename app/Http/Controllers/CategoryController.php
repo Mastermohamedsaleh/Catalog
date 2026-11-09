@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers; // تأكد من الـ Namespace الصحيح حسب ملفك
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
@@ -17,30 +17,28 @@ class CategoryController extends Controller
         $this->mediaService = $mediaService;
     }
 
-    // 1. عرض الأقسام في جدول الداشبورد (الدالة اللي كانت ناقصة)
-public function index()
+    public function index()
     {
         $categories = Category::with('parent', 'children')->withCount('products')->latest()->paginate(10);
         return view('admin.categories.index', compact('categories'));
     }
     
     public function show(Category $category) 
-   {
-    $products = $category->products()->paginate(10);
+    {
+        $products = $category->products()->paginate(10);
+        return view('admin.categories.show', compact('category', 'products'));
+    }
 
-    return view('admin.categories.show', compact('category', 'products'));
-   }
-
-
-
-    // 2. حفظ قسم جديد (رئيسي أو فرعي)
+    // حفظ قسم جديد مع التحقق من تفرد الاسم
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:categories,name',
             'parent_id' => 'nullable|exists:categories,id',
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ], [
+            'name.unique' => 'هذا الاسم مستخدم من قبل، يرجى اختيار اسم فريد للقسم.',
         ]);
 
         $data = $request->except(['_token', 'image']);
@@ -56,14 +54,16 @@ public function index()
         return redirect()->back()->with('success', 'Category created successfully!');
     }
 
-    // 3. تعديل القسم
+    // تعديل القسم مع التحقق من تفرد الاسم
     public function update(Request $request, Category $category)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
             'parent_id' => 'nullable|exists:categories,id|not_in:' . $category->id,
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ], [
+            'name.unique' => 'هذا الاسم مستخدم من قبل، يرجى اختيار اسم فريد للقسم.',
         ]);
 
         $data = $request->except(['_token', '_method', 'image']);
@@ -80,7 +80,6 @@ public function index()
         return redirect()->back()->with('success', 'Category updated successfully!');
     }
 
-    // 4. حذف القسم
     public function destroy(Category $category)
     {
         $this->mediaService->deleteFile($category->image);

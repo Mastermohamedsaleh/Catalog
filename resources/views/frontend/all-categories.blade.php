@@ -14,7 +14,16 @@
   <div class="container">
     <a class="navbar-brand fw-bold text-primary" href="{{ url('/') }}"><i class="bi bi-grid-fill me-2"></i>CatalogPro</a>
     <div class="d-flex gap-2">
-      <a href="{{ url('/') }}" class="btn btn-outline-primary btn-sm">Home</a>
+           @auth
+    @if(Auth::user()->isAdmin())
+        <a href="{{ route('admin.dashboard') }}" class="btn btn-primary">Dashboard</a>
+    @else
+        <a href="{{ route('merchant.orders.index') }}" class="btn btn-primary">Dashboard</a>
+    @endif
+@else
+   <a href="{{ route('login') }}" class="btn btn-outline-primary btn-sm">Sign in</a>
+     <a href="{{ route('register') }}" class="btn btn-primary btn-sm">Register</a>
+@endauth
     </div>
   </div>
 </nav>

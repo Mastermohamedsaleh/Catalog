@@ -14,6 +14,20 @@
         </button>
     </div>
 
+    <!-- رسائل النجاح أو الخطأ العامة -->
+    @if(session('success'))
+        <div class="alert alert-success m-3 rounded-3 small alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-1"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger m-3 rounded-3 small alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
     <!-- Table -->
     <div class="table-responsive">
         <table class="table table-modern align-middle mb-0" id="catTable">
@@ -99,7 +113,7 @@
 @foreach($categories as $category)
 <div class="modal fade" id="editCategoryModal{{ $category->id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-        <form action="{{ route('admin.categories.update', $category->id) }}" method="POST" enctype="multipart/form-data" class="modal-content border-0 rounded-4 shadow-lg needs-validation" novalidate>
+        <form action="{{ route('admin.categories.update', $category->id) }}" method="POST" enctype="multipart/form-data" class="modal-content border-0 rounded-4 shadow-lg">
             @csrf
             @method('PUT')
             <div class="modal-header border-0 pb-0">
@@ -109,26 +123,36 @@
             <div class="modal-body text-start">
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" name="name" value="{{ $category->name }}" required>
+                    <input type="text" class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name', $category->name) }}" required>
+                    @error('name')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <!-- اختيار القسم الرئيسي أثناء التعديل -->
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Parent Category</label>
-                    <select name="parent_id" class="form-control">
+                    <select name="parent_id" class="form-control @error('parent_id') is-invalid @enderror">
                         <option value="">-- Main Category (No Parent) --</option>
                         @foreach(\App\Models\Category::whereNull('parent_id')->where('id', '!=', $category->id)->get() as $mainCat)
-                            <option value="{{ $mainCat->id }}" {{ $category->parent_id == $mainCat->id ? 'selected' : '' }}>
+                            <option value="{{ $mainCat->id }}" {{ old('parent_id', $category->parent_id) == $mainCat->id ? 'selected' : '' }}>
                                 {{ $mainCat->name }}
                             </option>
                         @endforeach
                     </select>
+                    @error('parent_id')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Description</label>
-                    <textarea class="form-control" name="description" rows="3" maxlength="300">{{ $category->description }}</textarea>
+                    <textarea class="form-control @error('description') is-invalid @enderror" name="description" rows="3" maxlength="300">{{ old('description', $category->description) }}</textarea>
+                    @error('description')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
                 </div>
+
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Image / Icon</label>
                     @if($category->image)
@@ -141,9 +165,13 @@
                         <span class="small text-muted">Click to change image</span>
                         <input type="file" name="image" accept="image/*" style="display: none;">
                     </label>
+                    @error('image')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
+
                 <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="editActive{{ $category->id }}" name="is_active" value="1" {{ $category->is_active ? 'checked' : '' }}>
+                    <input class="form-check-input" type="checkbox" role="switch" id="editActive{{ $category->id }}" name="is_active" value="1" {{ old('is_active', $category->is_active) ? 'checked' : '' }}>
                     <label class="form-check-label small" for="editActive{{ $category->id }}">Active (visible on website)</label>
                 </div>
             </div>
@@ -159,7 +187,7 @@
 <!-- مودال الإضافة -->
 <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="catTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-    <form action="{{ route('admin.categories.store') }}" method="POST" enctype="multipart/form-data" class="modal-content border-0 rounded-4 shadow-lg needs-validation" novalidate>
+    <form action="{{ route('admin.categories.store') }}" method="POST" enctype="multipart/form-data" class="modal-content border-0 rounded-4 shadow-lg">
         @csrf
       <div class="modal-header border-0 pb-0">
         <h5 class="modal-title fw-bold" id="catTitle">Add New Category</h5>
@@ -168,24 +196,34 @@
       <div class="modal-body text-start">
         <div class="mb-3">
           <label for="catName" class="form-label small fw-semibold">Name <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" id="catName" name="name" placeholder="e.g. Electronics" required>
+          <input type="text" class="form-control @error('name') is-invalid @enderror" id="catName" name="name" value="{{ old('name') }}" placeholder="e.g. Electronics" required>
+          @error('name')
+              <div class="invalid-feedback">{{ $message }}</div>
+          @enderror
         </div>
 
         <!-- اختيار القسم الرئيسي عند الإضافة -->
         <div class="mb-3">
           <label class="form-label small fw-semibold">Parent Category (Optional)</label>
-          <select name="parent_id" class="form-control">
+          <select name="parent_id" class="form-control @error('parent_id') is-invalid @enderror">
               <option value="">-- Main Category (No Parent) --</option>
               @foreach(\App\Models\Category::whereNull('parent_id')->get() as $mainCat)
-                  <option value="{{ $mainCat->id }}">{{ $mainCat->name }}</option>
+                  <option value="{{ $mainCat->id }}" {{ old('parent_id') == $mainCat->id ? 'selected' : '' }}>{{ $mainCat->name }}</option>
               @endforeach
           </select>
+          @error('parent_id')
+              <div class="invalid-feedback">{{ $message }}</div>
+          @enderror
         </div>
 
         <div class="mb-3">
           <label for="catDesc" class="form-label small fw-semibold">Description</label>
-          <textarea class="form-control" id="catDesc" name="description" rows="3" maxlength="300" placeholder="Short description…"></textarea>
+          <textarea class="form-control @error('description') is-invalid @enderror" id="catDesc" name="description" rows="3" maxlength="300" placeholder="Short description…">{{ old('description') }}</textarea>
+          @error('description')
+              <div class="invalid-feedback">{{ $message }}</div>
+          @enderror
         </div>
+
         <div class="mb-3">
           <label class="form-label small fw-semibold">Image / Icon</label>
           <label class="drop-zone w-100">
@@ -193,9 +231,13 @@
             <span class="small text-muted">Click to upload (PNG, JPG, SVG)</span>
             <input type="file" name="image" accept="image/*" style="display: none;">
           </label>
+          @error('image')
+              <div class="text-danger small mt-1">{{ $message }}</div>
+          @enderror
         </div>
+
         <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" role="switch" id="catActive" name="is_active" value="1" checked>
+          <input class="form-check-input" type="checkbox" role="switch" id="catActive" name="is_active" value="1" {{ old('is_active', 1) ? 'checked' : '' }}>
           <label class="form-check-label small" for="catActive">Active (visible on website)</label>
         </div>
       </div>
@@ -211,6 +253,14 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // لو حصل خطأ في الـ Validation، افتح مودال الإضافة تلقائياً عشان المستخدم يشوف الخطأ
+    @if ($errors->has('name') || $errors->has('parent_id') || $errors->has('description') || $errors->has('image'))
+        @if(!session('edit_modal_id'))
+            var categoryModal = new bootstrap.Modal(document.getElementById('categoryModal'));
+            categoryModal.show();
+        @endif
+    @endif
+
     if (location.search.indexOf('new=1') > -1) {
         new bootstrap.Modal(document.getElementById('categoryModal')).show();
     }

@@ -9,7 +9,7 @@
     <div class="p-3 p-lg-4 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
         <div>
             <h2 class="h6 fw-bold mb-0">Registered Customers</h2>
-            <p class="text-muted small mb-0">View and manage regular users registered on your store.</p>
+            <p class="text-muted small mb-0">View and manage regular users registered on your store. Click on any customer name to view their orders.</p>
         </div>
 
         <!-- فورم البحث المباشر للعملاء -->
@@ -24,10 +24,16 @@
 
     <!-- رسائل التنبيه -->
     @if(session('success'))
-        <div class="alert alert-success m-3 rounded-3 small">{{ session('success') }}</div>
+        <div class="alert alert-success m-3 rounded-3 small alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-1"></i> {!! session('success') !!}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
     @endif
     @if(session('error'))
-        <div class="alert alert-danger m-3 rounded-3 small">{{ session('error') }}</div>
+        <div class="alert alert-danger m-3 rounded-3 small alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
     @endif
 
     <!-- Table -->
@@ -51,16 +57,28 @@
                                 <span class="thumb g{{ ($loop->index % 6) + 1 }}" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #e9ecef; font-weight: bold;">
                                     {{ strtoupper(substr($customer->name, 0, 1)) }}
                                 </span>
-                                <span class="fw-semibold">{{ $customer->name }}</span>
+                                <!-- الضغط على اسم التاجر ينقلك مباشرة لأوردراته (افترضنا مسار الأوردرات للأدمن مع فلتر بالـ user_id) -->
+                                <a href="{{ route('admin.orders.index', ['user_id' => $customer->id]) }}" class="fw-semibold text-decoration-none text-dark hover-primary" title="View customer orders">
+                                    {{ $customer->name }} <i class="bi bi-box-arrow-up-right small text-muted ms-1"></i>
+                                </a>
                             </div>
                         </td>
                         <td><code>{{ $customer->email }}</code></td>
                         <td>{{ $customer->created_at->format('Y-m-d') }}</td>
                         <td class="text-end text-nowrap">
+                            <!-- زرار إعادة تعيين كلمة السر -->
+                            <form action="{{ route('admin.customers.resetPassword', $customer->id) }}" method="POST" class="d-inline reset-form">
+                                @csrf
+                                <button type="submit" class="btn btn-outline-warning btn-sm me-1" title="Reset Password">
+                                    <i class="bi bi-key-fill"></i> Reset
+                                </button>
+                            </form>
+
+                            <!-- زرار الحذف -->
                             <form action="{{ route('admin.customers.destroy', $customer->id) }}" method="POST" class="d-inline delete-form">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn btn-icon btn-light text-danger btn-sm" aria-label="Delete">
+                                <button type="submit" class="btn btn-icon btn-light text-danger btn-sm" title="Delete Customer">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </form>
@@ -90,9 +108,19 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // تأكيد الحذف
     document.querySelectorAll('.delete-form').forEach(form => {
         form.addEventListener('submit', function (e) {
             if (!confirm('Are you sure you want to delete this customer account?')) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    // تأكيد إعادة تعيين كلمة السر
+    document.querySelectorAll('.reset-form').forEach(form => {
+        form.addEventListener('submit', function (e) {
+            if (!confirm('Are you sure you want to reset this customer password?')) {
                 e.preventDefault();
             }
         });

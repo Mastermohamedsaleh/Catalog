@@ -55,7 +55,7 @@
     <div class="auth-card">
       <div class="d-lg-none fs-4 fw-bold text-primary mb-4"><i class="bi bi-grid-fill me-2"></i>CatalogPro</div>
       <h2 class="fw-bold mb-1">Welcome back 👋</h2>
-      <p class="text-muted mb-4">Sign in to access your dashboard.</p>
+    
 
       <!-- Session Status (e.g. Password reset status) -->
       @if (session('status'))
@@ -83,9 +83,7 @@
         <div class="mb-3">
           <div class="d-flex justify-content-between">
             <label for="password" class="form-label small fw-semibold">Password</label>
-            @if (Route::has('password.request'))
-                <a href="{{ route('password.request') }}" class="small">Forgot?</a>
-            @endif
+
           </div>
           <div class="input-icon">
             <i class="bi bi-lock"></i>

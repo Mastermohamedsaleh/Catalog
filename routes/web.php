@@ -42,7 +42,9 @@ Route::resource('categories', CategoryController::class)
     ->except(['create', 'show', 'edit'])
     ->parameters(['categories' => 'category:slug']);
 
+    Route::post('/customers/{customer}/reset-password', [CustomerController::class, 'resetPassword'])->name('customers.resetPassword');
 
+    // مسارات العملاء (عرض وحذف)
     Route::resource('customers', CustomerController::class)->only(['index', 'destroy']);
 
     Route::resource('products', ProductController::class)->except(['create', 'show', 'edit']);
@@ -98,17 +100,12 @@ Route::middleware(['auth'])->prefix('merchant')->name('merchant.')->group(functi
     // مسار البحث اللحظي عن المنتجات والمقاسات (AJAX Search)
     Route::get('/products-search', [App\Http\Controllers\Merchant\OrderController::class, 'searchProducts'])->name('products.search');
     
-    // صفحة المحفظة الخاصة بالتاجر
-    Route::get('/wallet', function () {
-        // جلب أوردرات التاجر وحساب الأرباح المعلقة والمتاحة من قاعدة البيانات
-        $orders = \App\Models\Order::where('user_id', auth()->id())->latest()->get();
-        $availableBalance = auth()->user()->wallet ?? 0;
-        $pendingProfit = $orders->where('is_paid_to_wallet', false)->whereNotIn('status', ['returned', 'cancelled'])->sum('profit');
-        $deliveredCount = $orders->where('status', 'delivered')->count();
-        $lostCount = $orders->whereIn('status', ['returned', 'cancelled'])->count();
 
-        return view('merchant.wallet', compact('orders', 'availableBalance', 'pendingProfit', 'deliveredCount', 'lostCount'));
-    })->name('wallet');
+    Route::post('/orders/{order}/cancel', [App\Http\Controllers\Merchant\OrderController::class, 'cancel'])->name('orders.cancel');
+
+
+
+Route::get('/wallet', [App\Http\Controllers\Merchant\WalletController::class, 'index'])->name('wallet');
 });
 
 

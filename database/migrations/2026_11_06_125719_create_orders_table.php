@@ -24,6 +24,8 @@ $table->id();
             $table->decimal('selling_price', 10, 2);  
             $table->decimal('profit', 10, 2);       
             
+            $table->integer('stock')->default(1);
+
             $table->enum('status', ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'])->default('pending');
             
             $table->boolean('is_paid_to_wallet')->default(false);   

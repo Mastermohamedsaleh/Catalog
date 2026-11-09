@@ -28,7 +28,7 @@
         <div class="alert alert-danger m-3 mb-0 rounded-3 shadow-sm border-0 d-flex align-items-center" role="alert">
             <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
             <div>
-                <strong>تنبيه!</strong> برجاء مراجعة البيانات المدخلة وتصحيح الأخطاء المشار إليها أدناه.
+                <strong>تنبيه!</strong> {{ $errors->first() }}
             </div>
         </div>
     @endif
@@ -223,17 +223,17 @@
             </div>
             
             <div id="variantsSection" style="display: {{ old('has_variants') ? 'block' : 'none' }};">
-                <p class="small text-muted mb-2">أضف المقاسات والألوان المتاحة مع مخزونها الخاص:</p>
+                <p class="small text-muted mb-2">أضف المقاسات والألوان المتاحة مع مخزونها الخاص (مجموع المخزون يجب أن يساوي المخزون الإجمالي):</p>
                 <div id="variantsContainer">
                     <div class="row g-2 mb-2 variant-row">
                         <div class="col-md-4">
-                            <input type="text" class="form-control form-control-sm" name="variants[0][size]" placeholder="Size (e.g. S, M, L, XL)">
+                            <input type="text" class="form-control form-control-sm" name="variants[0][size]" placeholder="Size (e.g. S, M, L)">
                         </div>
                         <div class="col-md-4">
                             <input type="text" class="form-control form-control-sm" name="variants[0][color]" placeholder="Color (e.g. Red, Black)">
                         </div>
                         <div class="col-md-3">
-                            <input type="number" class="form-control form-control-sm" name="variants[0][stock]" placeholder="Stock" value="10">
+                            <input type="number" class="form-control form-control-sm" name="variants[0][stock]" placeholder="Stock" value="0">
                         </div>
                         <div class="col-md-1">
                             <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-variant" style="display:none;"><i class="bi bi-x"></i></button>
@@ -265,10 +265,8 @@
   </div>
 </div>
 
-<!-- ================= مودالات التعديل، معاينة المعرض، ومعاينة الفيديو لكل منتج ================= -->
+<!-- ================= مودالات التعديل لكل منتج ================= -->
 @foreach($products as $product)
-
-<!-- 1. مودال التعديل -->
 <div class="modal fade" id="editProductModal{{ $product->id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
     <form action="{{ route('admin.products.update', $product->id) }}" method="POST" enctype="multipart/form-data" class="modal-content border-0 rounded-4 shadow-lg">
@@ -330,12 +328,6 @@
                   @foreach($product->images as $img)
                       <div class="position-relative border rounded p-1 bg-white" style="width: 60px; height: 60px;">
                           <img src="{{ asset('storage/' . $img->image_path) }}" class="rounded w-100 h-100" style="object-fit: cover;">
-                          
-                          <div class="position-absolute top-0 start-100 translate-middle">
-                              <button type="submit" form="delete-img-form-{{ $img->id }}" class="btn btn-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center shadow-sm" style="width: 20px; height: 20px;" title="Delete Image" onclick="return confirm('حذف هذه الصورة؟');">
-                                  <i class="bi bi-x" style="font-size: 12px;"></i>
-                              </button>
-                          </div>
                       </div>
                   @endforeach
               </div>
@@ -353,209 +345,188 @@
               <div class="mb-2">
                   <video width="160" controls class="rounded border">
                       <source src="{{ asset('storage/' . $product->video_url) }}" type="video/mp4">
-                      Your browser does not support the video tag.
                   </video>
               </div>
           @endif
           <input type="file" class="form-control" name="video_url" accept="video/*">
         </div>
 
-        <!-- المتغيرات -->
+        <!-- المتغيرات (تعديل وإضافة مقاسات جديدة) -->
         <div class="card bg-light border-0 p-3 mb-3">
             <div class="form-check form-switch mb-2">
-              <input class="form-check-input" type="checkbox" name="has_variants" id="editHasVariantsCheck{{ $product->id }}" value="1" {{ $product->variants->count() > 0 ? 'checked' : '' }}>
+              <input class="form-check-input edit-has-variants-check" type="checkbox" name="has_variants" id="editHasVariantsCheck{{ $product->id }}" value="1" {{ $product->variants->count() > 0 ? 'checked' : '' }} data-product-id="{{ $product->id }}">
               <label class="form-check-label fw-bold small text-dark" for="editHasVariantsCheck{{ $product->id }}">تفعيل المقاسات والألوان لهذا المنتج</label>
             </div>
             
             <div id="editVariantsSection{{ $product->id }}" style="display: {{ $product->variants->count() > 0 ? 'block' : 'none' }};">
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead>
-                            <tr class="small text-muted">
-                                <th>Size</th>
-                                <th>Color</th>
-                                <th>Stock</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($product->variants as $index => $variant)
-                                <tr>
-                                    <td><input type="text" class="form-control form-control-sm" name="variants[{{ $index }}][size]" value="{{ $variant->size }}"></td>
-                                    <td><input type="text" class="form-control form-control-sm" name="variants[{{ $index }}][color]" value="{{ $variant->color }}"></td>
-                                    <td><input type="number" class="form-control form-control-sm" name="variants[{{ $index }}][stock]" value="{{ $variant->stock }}"></td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td><input type="text" class="form-control form-control-sm" name="variants[0][size]" placeholder="Size"></td>
-                                    <td><input type="text" class="form-control form-control-sm" name="variants[0][color]" placeholder="Color"></td>
-                                    <td><input type="number" class="form-control form-control-sm" name="variants[0][stock]" value="10"></td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                <p class="small text-muted mb-2">يمكنك تعديل أو إضافة مقاسات ولون جديدة:</p>
+                <div id="editVariantsContainer{{ $product->id }}">
+                    @if($product->variants->count() > 0)
+                        @foreach($product->variants as $index => $variant)
+                            <div class="row g-2 mb-2 edit-variant-row">
+                                <div class="col-md-4">
+                                    <input type="text" class="form-control form-control-sm" name="variants[{{ $index }}][size]" value="{{ $variant->size }}" placeholder="Size">
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="text" class="form-control form-control-sm" name="variants[{{ $index }}][color]" value="{{ $variant->color }}" placeholder="Color">
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="number" class="form-control form-control-sm" name="variants[{{ $index }}][stock]" value="{{ $variant->stock }}" placeholder="Stock">
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-edit-variant"><i class="bi bi-x"></i></button>
+                                </div>
+                            </div>
+                        @endforeach
+                    @else
+                        <div class="row g-2 mb-2 edit-variant-row">
+                            <div class="col-md-4">
+                                <input type="text" class="form-control form-control-sm" name="variants[0][size]" placeholder="Size">
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control form-control-sm" name="variants[0][color]" placeholder="Color">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" class="form-control form-control-sm" name="variants[0][stock]" placeholder="Stock" value="0">
+                            </div>
+                            <div class="col-md-1">
+                                <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-edit-variant"><i class="bi bi-x"></i></button>
+                            </div>
+                        </div>
+                    @endif
                 </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-1 add-edit-variant-btn" data-product-id="{{ $product->id }}"><i class="bi bi-plus"></i> إضافة مقاس/لون جديد</button>
             </div>
         </div>
 
+        <!-- الوصف -->
         <div class="mb-3">
           <label class="form-label small fw-semibold">Description</label>
           <textarea class="form-control" name="description" rows="3">{{ $product->description }}</textarea>
         </div>
 
+        <!-- الحالة -->
         <div class="form-check form-switch mb-3">
-          <input class="form-check-input" type="checkbox" name="is_active" id="isActiveEdit{{ $product->id }}" value="1" {{ $product->is_active ? 'checked' : '' }}>
-          <label class="form-check-label small fw-semibold" for="isActiveEdit{{ $product->id }}">Active Product</label>
+          <input class="form-check-input" type="checkbox" name="is_active" id="editIsActiveCheck{{ $product->id }}" value="1" {{ $product->is_active ? 'checked' : '' }}>
+          <label class="form-check-label small fw-semibold" for="editIsActiveCheck{{ $product->id }}">Active Product</label>
         </div>
 
       </div>
-
-      <!-- الفوتر الصحيح لجوا المودال (الزرارين في مكانهم الصح تحت) -->
       <div class="modal-footer border-0 pt-0">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
         <button type="submit" class="btn btn-primary">Update product</button>
       </div>
-
     </form>
   </div>
 </div>
-
-<!-- 2. مودال معاينة صور المعرض السريعة -->
-@if($product->images->count() > 0)
-<div class="modal fade" id="galleryModal{{ $product->id }}" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 rounded-4 shadow-lg">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title fw-bold fs-6">معرض صور: {{ $product->name }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body text-center">
-        <p class="small text-muted mb-3">يمكنك معاينة الصور الإضافية وحذف ما تحتاجه مباشرة:</p>
-        
-        <div class="d-flex flex-wrap gap-3 justify-content-center p-3 bg-light rounded border">
-            @foreach($product->images as $img)
-                <div class="position-relative border rounded p-1 bg-white shadow-sm" style="width: 80px; height: 80px;">
-                    <img src="{{ asset('storage/' . $img->image_path) }}" class="rounded w-100 h-100" style="object-fit: cover;">
-                    
-                    <!-- زر حذف الصورة الفردية -->
-                    <form action="{{ route('admin.products.images.destroy', $img->id) }}" method="POST" class="position-absolute top-0 start-100 translate-middle" onsubmit="return confirm('هل أنت متأكد من حذف هذه الصورة؟');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center shadow" style="width: 22px; height: 22px;" title="حذف الصورة">
-                            <i class="bi bi-x" style="font-size: 14px;"></i>
-                        </button>
-                    </form>
-                </div>
-            @endforeach
-        </div>
-      </div>
-      <div class="modal-footer border-0 pt-0">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إغلاق</button>
-      </div>
-    </div>
-  </div>
-</div>
-@endif
-
-<!-- 3. مودال معاينة الفيديو لكل منتج -->
-@if($product->video_url)
-<div class="modal fade" id="videoModal{{ $product->id }}" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 rounded-4 shadow-lg bg-dark text-white">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title fs-6">Video Preview: {{ $product->name }}</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body text-center p-3">
-        <video width="100%" controls class="rounded shadow">
-            <source src="{{ asset('storage/' . $product->video_url) }}" type="video/mp4">
-            Your browser does not support the video tag.
-        </video>
-      </div>
-    </div>
-  </div>
-</div>
-@endif
-
-<!-- فورمات حذف صور المعرض المنفصلة (خارج المودالات تماماً عشان تخدم زر الحذف جوه المودال صح) -->
-@foreach($product->images as $img)
-    <form id="delete-img-form-{{ $img->id }}" action="{{ route('admin.products.images.destroy', $img->id) }}" method="POST" class="d-none">
-        @csrf
-        @method('DELETE')
-    </form>
 @endforeach
 
-@endforeach
 @endsection
 
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // تأكيد الحذف العام للمنتج
-    document.querySelectorAll('.delete-form').forEach(form => {
-        form.addEventListener('submit', function (e) {
-            if (!confirm('Are you sure you want to delete this product and its media files?')) {
-                e.preventDefault();
-            }
-        });
-    });
-
-    // إظهار/إخفاء قسم المتغيرات في مودال الإضافة
+    // 1. التحكم في ظهور سكشن المتغيرات للإضافة
     const hasVariantsCheck = document.getElementById('hasVariantsCheck');
     const variantsSection = document.getElementById('variantsSection');
+    
     if (hasVariantsCheck) {
         hasVariantsCheck.addEventListener('change', function() {
             variantsSection.style.display = this.checked ? 'block' : 'none';
         });
     }
 
-    // إضافة صف جديد للمتغيرات ديناميكياً
-    let variantIndex = 1;
+    // إضافة صف جديد للمقاسات في مودال الإضافة
+    let variantIndex = {{ old('variants') ? count(old('variants')) : 1 }};
     const addVariantBtn = document.getElementById('addVariantBtn');
     const variantsContainer = document.getElementById('variantsContainer');
-    
+
     if (addVariantBtn) {
         addVariantBtn.addEventListener('click', function() {
-            const row = document.createElement('div');
-            row.className = 'row g-2 mb-2 variant-row';
-            row.innerHTML = `
-                <div class="col-md-4">
-                    <input type="text" class="form-control form-control-sm" name="variants[${variantIndex}][size]" placeholder="Size (e.g. S, M, L)">
-                </div>
-                <div class="col-md-4">
-                    <input type="text" class="form-control form-control-sm" name="variants[${variantIndex}][color]" placeholder="Color (e.g. Red, Black)">
-                </div>
-                <div class="col-md-3">
-                    <input type="number" class="form-control form-control-sm" name="variants[${variantIndex}][stock]" placeholder="Stock" value="10">
-                </div>
-                <div class="col-md-1">
-                    <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-variant"><i class="bi bi-x"></i></button>
+            const rowHtml = `
+                <div class="row g-2 mb-2 variant-row">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm" name="variants[${variantIndex}][size]" placeholder="Size">
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm" name="variants[${variantIndex}][color]" placeholder="Color">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control form-control-sm" name="variants[${variantIndex}][stock]" placeholder="Stock" value="0">
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-variant"><i class="bi bi-x"></i></button>
+                    </div>
                 </div>
             `;
-            variantsContainer.appendChild(row);
+            variantsContainer.insertAdjacentHTML('beforeend', rowHtml);
             variantIndex++;
-
-            row.querySelector('.remove-variant').addEventListener('click', function() {
-                row.remove();
-            });
+            toggleRemoveButtons();
         });
     }
 
-    // تفعيل إظهار/إخفاء المتغيرات في مودالات التعديل لكل منتج
-    @foreach($products as $prod)
-        const editCheck{{ $prod->id }} = document.getElementById('editHasVariantsCheck{{ $prod->id }}');
-        const editSec{{ $prod->id }} = document.getElementById('editVariantsSection{{ $prod->id }}');
-        if (editCheck{{ $prod->id }}) {
-            editCheck{{ $prod->id }}.addEventListener('change', function() {
-                editSec{{ $prod->id }}.style.display = this.checked ? 'block' : 'none';
-            });
+    // حذف صف من الإضافة
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-variant')) {
+            e.target.closest('.variant-row').remove();
+            toggleRemoveButtons();
         }
-    @endforeach
+    });
 
-    // إعادة فتح مودال الإضافة تلقائياً لو حصل خطأ في الـ Validation
-    @if ($errors->any())
-        var productModal = new bootstrap.Modal(document.getElementById('productModal'));
-        productModal.show();
-    @endif
+    function toggleRemoveButtons() {
+        const rows = document.querySelectorAll('.variant-row');
+        rows.forEach((row, idx) => {
+            const btn = row.querySelector('.remove-variant');
+            if (btn) {
+                btn.style.display = rows.length > 1 ? 'block' : 'none';
+            }
+        });
+    }
+
+    // 2. التحكم في مودالات التعديل (إظهار/إخفاء وإضافة صفوف مقاسات جديدة لكل منتج)
+    document.querySelectorAll('.edit-has-variants-check').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const productId = this.getAttribute('data-product-id');
+            const section = document.getElementById('editVariantsSection' + productId);
+            if (section) {
+                section.style.display = this.checked ? 'block' : 'none';
+            }
+        });
+    });
+
+    // إضافة صف جديد داخل مودال التعديل
+    document.querySelectorAll('.add-edit-variant-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const productId = this.getAttribute('data-product-id');
+            const container = document.getElementById('editVariantsContainer' + productId);
+            const rowCount = container.querySelectorAll('.edit-variant-row').length;
+
+            const rowHtml = `
+                <div class="row g-2 mb-2 edit-variant-row">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm" name="variants[${rowCount}][size]" placeholder="Size">
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm" name="variants[${rowCount}][color]" placeholder="Color">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control form-control-sm" name="variants[${rowCount}][stock]" placeholder="Stock" value="0">
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-edit-variant"><i class="bi bi-x"></i></button>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', rowHtml);
+        });
+    });
+
+    // حذف صف من التعديل
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-edit-variant')) {
+            e.target.closest('.edit-variant-row').remove();
+        }
+    });
 });
 </script>
 @endpush

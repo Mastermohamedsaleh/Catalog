@@ -42,15 +42,20 @@ public function index(Request $request)
 
     public function store(Request $request)
     {
-        $request->validate([
+$request->validate([
             'category_id' => 'required|exists:categories,id',
-            'name'        => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:products,name',
             'price'       => 'required|numeric|min:0',
             'stock'       => 'required|integer|min:0',
             'main_image'  => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', 
             'images.*'    => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', // صور المعرض المتعددة
-            'video_url'   => 'nullable|mimes:mp4,mov,avi,wmv|max:10240',     
+            'video_url'   => 'nullable|mimes:mp4,mov,avi,wmv|max:10240',    
             'description' => 'nullable|string',
+        ], [
+            'name.unique' => 'عذراً، هذا الاسم مسجل مسبقاً لمنتج آخر. يرجى اختيار اسم فريد.',
+            'category_id.required' => 'يرجى اختيار القسم التابع له المنتج.',
+            'price.required' => 'سعر الجملة مطلوب.',
+            'stock.required' => 'كمية المخزون مطلوبة.',
         ]);
 
         // التحقق من تطابق مجموع الاستوك للمتغيرات مع الاستوك الأساسي لو المنتج مفعل له متغيرات
@@ -128,15 +133,20 @@ public function index(Request $request)
 
     public function update(Request $request, Product $product)
     {
-        $request->validate([
+$request->validate([
             'category_id' => 'required|exists:categories,id',
-            'name'        => 'required|string|max:255',
+            'name'        => 'required|string|max:255|unique:products,name,' . $product->id,
             'price'       => 'required|numeric|min:0',
             'stock'       => 'required|integer|min:0',
             'main_image'  => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'images.*'    => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'video_url'   => 'nullable|mimes:mp4,mov,avi,wmv|max:10240',
             'description' => 'nullable|string',
+        ], [
+            'name.unique' => 'عذراً، هذا الاسم مسجل مسبقاً لمنتج آخر. يرجى اختيار اسم فريد.',
+            'category_id.required' => 'يرجى اختيار القسم التابع له المنتج.',
+            'price.required' => 'سعر الجملة مطلوب.',
+            'stock.required' => 'كمية المخزون مطلوبة.',
         ]);
 
         // التحقق من تطابق الاستوك أثناء التعديل أيضاً

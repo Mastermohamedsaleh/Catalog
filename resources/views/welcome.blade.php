@@ -33,13 +33,16 @@
       </ul>
       <div class="d-flex align-items-center gap-2 mt-2 mt-lg-0">
         <a href="tel:+201000000000" class="btn btn-light btn-sm d-none d-xl-inline-flex gap-1"><i class="bi bi-telephone-fill text-primary"></i>+20 100 000 0000</a>
-        
         @auth
-            <a href="{{ route('admin.products.index') }}" class="btn btn-primary btn-sm">Dashboard</a>
-        @else
-            <a href="{{ route('login') }}" class="btn btn-outline-primary btn-sm">Sign in</a>
-            <a href="{{ route('register') }}" class="btn btn-primary btn-sm">Register</a>
-        @endauth
+    @if(Auth::user()->isAdmin())
+        <a href="{{ route('admin.dashboard') }}" class="btn btn-primary">Dashboard</a>
+    @else
+        <a href="{{ route('merchant.orders.index') }}" class="btn btn-primary">Dashboard</a>
+    @endif
+@else
+   <a href="{{ route('login') }}" class="btn btn-outline-primary btn-sm">Sign in</a>
+     <a href="{{ route('register') }}" class="btn btn-primary btn-sm">Register</a>
+@endauth
       </div>
     </div>
   </div>
