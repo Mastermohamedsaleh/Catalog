@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Middleware;
 
 use Closure;
@@ -12,8 +13,10 @@ class AdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // التحقق إن المستخدم مسجل دخول وهل هو الأدمن بالكود السري بتاعنا
-        if (! $request->user() || $request->user()->role !== 'catalog_master_root') {
+        // السماح لو اليوزر أدمن أو معاة صلاحية الماستر أو السوبر
+        $user = $request->user();
+        
+        if (! $user || ! ($user->role === 'admin' || $user->role === 'catalog_master_root' || $user->is_super)) {
             return redirect('/')->with('error', 'Unauthorized access.');
         }
 

@@ -105,7 +105,14 @@ Route::middleware(['auth'])->prefix('merchant')->name('merchant.')->group(functi
 
 
 
-Route::get('/wallet', [App\Http\Controllers\Merchant\WalletController::class, 'index'])->name('wallet');
+
+    // صفحة المحفظة
+    Route::get('/wallet', [App\Http\Controllers\Merchant\WalletController::class, 'index'])->name('wallet');
+    
+    Route::post('/wallet/withdraw', [App\Http\Controllers\Merchant\WalletController::class, 'withdraw'])->name('wallet.withdraw');
+
+
+
 });
 
 

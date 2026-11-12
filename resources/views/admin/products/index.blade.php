@@ -9,9 +9,9 @@
     <div class="p-3 p-lg-4 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
         <h2 class="h6 fw-bold mb-0">All Products</h2>
         
-        <!-- فورم البحث المباشر للتعامل مع آلاف المنتجات -->
+        <!-- فورم البحث المباشر بالاسم أو الـ SKU -->
         <form action="{{ route('admin.products.index') }}" method="GET" class="d-flex gap-2 w-100 w-md-auto" style="max-width: 350px;">
-            <input type="text" name="search" class="form-control form-control-sm" placeholder="Search products..." value="{{ request('search') }}">
+            <input type="text" name="search" class="form-control form-control-sm" placeholder="Search by name, SKU..." value="{{ request('search') }}">
             <button type="submit" class="btn btn-outline-secondary btn-sm text-nowrap"><i class="bi bi-search"></i></button>
             @if(request('search'))
                 <a href="{{ route('admin.products.index') }}" class="btn btn-outline-danger btn-sm" title="Clear Search"><i class="bi bi-x-lg"></i></a>
@@ -47,6 +47,7 @@
                 <tr>
                     <th>#</th>
                     <th>Image</th>
+                    <th>SKU (الكود)</th>
                     <th>Video Preview</th>
                     <th>Product Name</th>
                     <th>Category</th>
@@ -70,6 +71,11 @@
                             @else
                                 <span class="badge bg-light text-muted border">No Image</span>
                             @endif
+                        </td>
+
+                        <!-- كود المنتج SKU -->
+                        <td>
+                            <span class="badge bg-dark font-monospace">{{ $product->sku ?? 'N/A' }}</span>
                         </td>
 
                         <!-- معاينة الفيديو -->
@@ -136,7 +142,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-4">No products found.</td>
+                        <td colspan="10" class="text-center text-muted py-4">No products found.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -163,10 +169,16 @@
       </div>
       <div class="modal-body text-start">
         
-        <!-- اسم المنتج -->
-        <div class="mb-3">
-          <label class="form-label small fw-semibold">Product Name <span class="text-danger">*</span></label>
-          <input type="text" class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name') }}" placeholder="Enter product name" required>
+        <!-- اسم المنتج والكود SKU -->
+        <div class="row">
+            <div class="col-md-8 mb-3">
+              <label class="form-label small fw-semibold">Product Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name') }}" placeholder="Enter product name" required>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label small fw-semibold">Product SKU (كود المنتج)</label>
+              <input type="text" class="form-control @error('sku') is-invalid @enderror" name="sku" value="{{ old('sku') }}" placeholder="اختياري (يولد تلقائياً)">
+            </div>
         </div>
 
         <!-- القسم -->
@@ -219,7 +231,7 @@
         <div class="card bg-light border-0 p-3 mb-3">
             <div class="form-check form-switch mb-2">
               <input class="form-check-input" type="checkbox" name="has_variants" id="hasVariantsCheck" value="1" {{ old('has_variants') ? 'checked' : '' }}>
-              <label class="form-check-label fw-bold small text-dark" for="hasVariantsCheck">هل المنتج يحتوي على مقاسات وألوان متعددة؟ (مثل الملابس والأحذية)</label>
+              <label class="form-check-label fw-bold small text-dark" for="hasVariantsCheck">هل المنتج يحتوي على مقاسات والألوان متعددة؟ (مثل الملابس والأحذية)</label>
             </div>
             
             <div id="variantsSection" style="display: {{ old('has_variants') ? 'block' : 'none' }};">
@@ -280,9 +292,16 @@
 
       <div class="modal-body text-start">
         
-        <div class="mb-3">
-          <label class="form-label small fw-semibold">Product Name <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" name="name" value="{{ $product->name }}" required>
+        <!-- اسم المنتج والكود SKU -->
+        <div class="row">
+            <div class="col-md-8 mb-3">
+              <label class="form-label small fw-semibold">Product Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="name" value="{{ $product->name }}" required>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label small fw-semibold">Product SKU (كود المنتج)</label>
+              <input type="text" class="form-control font-monospace" name="sku" value="{{ $product->sku }}">
+            </div>
         </div>
 
         <div class="mb-3">

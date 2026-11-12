@@ -8,20 +8,18 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class OrderController extends Controller
 {
-    // عرض جميع الأوردرات في الداشبورد مع دعم البحث وفلترة أوردرات تاجر معين (user_id)
     public function index(Request $request)
     {
         $query = Order::with(['user', 'product', 'variant'])->latest();
 
-        // فلترة أوردرات تاجر معين عند الضغط على اسمه من صفحة العملاء
         if ($request->filled('user_id')) {
             $query->where('user_id', $request->user_id);
         }
 
-        // تفعيل فلتر البحث الشامل
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -42,7 +40,6 @@ class OrderController extends Controller
         return view('admin.orders.index', compact('orders'));
     }
 
-    // حفظ أوردر جديد (من قبل الأدمن) مع خصم المخزون ودعم المقاسات
     public function store(Request $request)
     {
         $request->validate([
@@ -64,22 +61,23 @@ class OrderController extends Controller
 
         DB::beginTransaction();
         try {
-            // التحقق وخصم المخزون (سواء منتج عادي أو برودكت فاريانت)
             if ($request->filled('product_variant_id')) {
                 $variant = ProductVariant::findOrFail($request->product_variant_id);
                 if ($variant->stock < $qty) {
                     return back()->with('error', 'عذراً، الكمية المطلوبة غير متوفرة لهذا المقاس/اللون بالمخزون!');
                 }
-                $variant->decrement('stock', $qty);
+                $variant->stock -= $qty;
+                $variant->save(); // يخصم ويحدث الأساسي أوتوماتيك
                 $variantId = $variant->id;
             } else {
                 if ($product->stock < $qty) {
-                    return back()->with('error', 'عذراً، هذا المنتج نفد من المخزون أو الكمية غير متفورة!');
+                    return back()->with('error', 'عذراً، هذا المنتج نفد من المخزون أو الكمية غير متوفرة!');
                 }
-                $product->decrement('stock', $qty);
+                $product->stock -= $qty;
+                $product->save();
             }
 
-            // حساب الربح بشكل صحيح (سعر البيع ناقص سعر الجملة مضروباً في الكمية)
+            // تصحيح معادلة الأرباح
             $profit = ($request->selling_price - $product->price) * $qty;
 
             if ($profit < 0) {
@@ -88,7 +86,7 @@ class OrderController extends Controller
             }
 
             Order::create([
-                'user_id' => auth()->id(), // المستخدم الحالي (الأدمن)
+                'user_id' => auth()->id(),
                 'product_id' => $product->id,
                 'product_variant_id' => $variantId,
                 'customer_name' => $request->customer_name,
@@ -98,7 +96,7 @@ class OrderController extends Controller
                 'selling_price' => $request->selling_price,
                 'profit' => $profit,
                 'stock' => $qty,
-                'status' => 'pending', // حالة الأوردر الابتدائية معلق
+                'status' => 'pending',
                 'is_paid_to_wallet' => false,
             ]);
 
@@ -115,19 +113,51 @@ class OrderController extends Controller
     {
         $request->validate([
             'status' => 'required|in:pending,processing,shipped,delivered,cancelled,returned',
+            'cancellation_reason' => 'required_if:status,cancelled,returned|nullable|string|max:500',
+        ], [
+            'cancellation_reason.required_if' => 'يجب كتابة سبب الإلغاء أو الإرجاع نظراً لتغيير حالة الطلب.',
         ]);
+
+        if ($order->status === 'cancelled') {
+            return back()->with('error', 'عذراً، هذا الطلب ملغى بالفعل ولا يمكن تغيير حالته!');
+        }
 
         DB::beginTransaction();
         try {
             $oldStatus = $order->status;
-            $order->status = $request->status;
+            $newStatus = $request->status;
+            $quantityToRestore = $order->stock;
+
+            // إرجاع المخزون في حال تحول الأوردر إلى ملغي أو مرتجع
+            if (in_array($newStatus, ['cancelled', 'returned']) && !in_array($oldStatus, ['cancelled', 'returned'])) {
+                if ($order->product_variant_id) {
+                    $variant = ProductVariant::find($order->product_variant_id);
+                    if ($variant) {
+                        $variant->stock += $quantityToRestore;
+                        $variant->save(); // يرجع للمقاس ويحدث الأساسي أوتوماتيك
+                    }
+                } else {
+                    $product = Product::find($order->product_id);
+                    if ($product) {
+                        $product->stock += $quantityToRestore;
+                        $product->save();
+                    }
+                }
+            }
+
+            $order->status = $newStatus;
+            
+            if (in_array($newStatus, ['cancelled', 'returned'])) {
+                $order->cancellation_reason = $request->cancellation_reason;
+            } else {
+                $order->cancellation_reason = null;
+            }
+            
             $order->save();
 
-            // إضافة الأرباح لمحفظة المستخدم عند تسليم الأوردر لأول مرة
-            if ($order->status == 'delivered' && $oldStatus != 'delivered' && !$order->is_paid_to_wallet) {
+            if ($newStatus == 'delivered' && $oldStatus != 'delivered' && !$order->is_paid_to_wallet) {
                 $user = $order->user;
                 if ($user) {
-                    // التحقق مما إذا كان حقل المحفظة موجود أو استخدام العمود المتاح لديك
                     if (Schema::hasColumn('users', 'wallet_balance')) {
                         $user->wallet_balance = ($user->wallet_balance ?? 0) + $order->profit;
                         $user->save();
@@ -142,7 +172,7 @@ class OrderController extends Controller
             }
 
             DB::commit();
-            return redirect()->back()->with('success', 'تم تحديث حالة الطلب بنجاح!');
+            return redirect()->back()->with('success', 'تم تحديث حالة الطلب وإدارة المخزون بنجاح!');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -152,7 +182,6 @@ class OrderController extends Controller
 
     public function destroy(Order $order)
     {
-        // إعادة المخزون لو الأوردر اتحذف وهو لسه مش محذوف نهائي (اختياري حسب رغبتك)
         $order->delete();
         return redirect()->back()->with('success', 'تم حذف الطلب بنجاح.');
     }

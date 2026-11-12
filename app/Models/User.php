@@ -20,7 +20,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-     'role',
+        'role',
         'is_super',
     ];
 
@@ -39,24 +39,23 @@ class User extends Authenticatable
      *
      * @return array<string, string>
      */
-protected function casts(): array
+    protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'is_super' => 'boolean', // ← عشان يقراه لارافيل كـ True/False
+            'is_super' => 'boolean', // عشان يقراه لارافيل كـ True/False
         ];
     }
 
     public function isAdmin(): bool
     {
-        return $this->role === 'catalog_master_root';
+        // تم تعديلها لتتوافق مع الـ role 'admin' اللي مسجل في الداتا بيز والـ Seeder
+        return $this->role === 'admin' || $this->role === 'catalog_master_root' || $this->is_super === true;
     }
 
     public function isSuperAdmin(): bool
     {
-        return $this->is_super === true || $this->role === 'catalog_master_root';
+        return $this->is_super === true || $this->role === 'catalog_master_root' || $this->role === 'admin';
     }
-
-
 }

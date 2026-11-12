@@ -78,6 +78,18 @@
           </div>
         </div>
 
+        <!-- Phone Number -->
+        <div class="mb-3">
+          <label for="phone" class="form-label small fw-semibold">Phone Number</label>
+          <div class="input-icon">
+            <i class="bi bi-telephone"></i>
+            <input type="text" class="form-control @error('phone') is-invalid @enderror" id="phone" name="phone" value="{{ old('phone') }}" placeholder="01012345678" required autocomplete="tel">
+            @error('phone')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
+          </div>
+        </div>
+
         <!-- Password & Confirmation -->
         <div class="row g-3 mb-3">
           <div class="col-sm-6">

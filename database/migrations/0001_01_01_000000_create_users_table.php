@@ -21,6 +21,8 @@ return new class extends Migration
         $table->string('role')->default('app_client_usr');
         $table->boolean('is_super')->default(false);
         
+        $table->string('phone')->nullable();
+
         $table->rememberToken();
         $table->timestamps();
         });

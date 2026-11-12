@@ -79,10 +79,10 @@
       <p class="text-muted small mb-4">Fill in your customer's data. The order is sent to the admin for confirmation.</p>
 
       <div class="row g-3">
-        <!-- البحث عن المنتج (Local Fast Search) -->
+        <!-- البحث عن المنتج (بالاسم أو كود الـ SKU فقط) -->
         <div class="col-md-6 position-relative">
-          <label for="productSearch" class="form-label small fw-semibold">Search Product <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" id="productSearch" placeholder="Type product name..." autocomplete="off" required>
+          <label for="productSearch" class="form-label small fw-semibold">Search Product (Name or Code) <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="productSearch" placeholder="Type product name or Code..." autocomplete="off" required>
           <input type="hidden" id="productId" name="product_id">
           <div id="searchResults" class="list-group position-absolute w-100 shadow-sm" style="z-index: 1000; max-height: 220px; overflow-y: auto; display: none;"></div>
           <div class="invalid-feedback">Please choose a valid product from the list.</div>
@@ -129,7 +129,7 @@
         <!-- الحالة -->
         <div class="col-md-4">
           <label class="form-label small fw-semibold">Status</label>
-          <div class="border rounded-3 px-3 py-2 bg-light d-flex align-items-center gap-2" style="min-height:44px"><span class="badge badge-soft-warning">Pending</span><span class="small text-muted">Set by admin</span></div>
+          <div class="border rounded-3 px-3 py-2 bg-light d-flex align-items-center gap-2" style="min-height:44px"><span class="badge bg-warning text-dark">Pending</span><span class="small text-muted">Set by admin</span></div>
           <input type="hidden" name="status" value="pending">
           <input type="hidden" name="is_paid_to_wallet" value="0">
         </div>
@@ -158,7 +158,7 @@
     <!-- ============ MY ORDERS TABLE ============ -->
     <div class="card-soft">
       <div class="p-3 p-lg-4 pb-2 d-flex flex-wrap gap-2 justify-content-between align-items-center">
-        <h2 class="h6 fw-bold mb-0">My orders <span class="badge badge-soft-primary ms-1" id="ordersCount">{{ $orders->count() }}</span></h2>
+        <h2 class="h6 fw-bold mb-0">My orders <span class="badge bg-primary ms-1" id="ordersCount">{{ $orders->count() }}</span></h2>
         <div class="input-icon" style="min-width:240px"><i class="bi bi-search"></i><input type="search" class="form-control form-control-sm py-2" placeholder="Search orders…" data-filter="#ordersTable"></div>
       </div>
       <div class="table-responsive">
@@ -172,6 +172,7 @@
                   <th>Cost</th>
                   <th>Selling</th>
                   <th>Qty</th>
+                  <th>Size / Color</th>
                   <th>Profit</th>
                   <th>Status</th>
                   <th>Wallet</th>
@@ -181,17 +182,40 @@
               @forelse($orders as $order)
                   <tr>
                       <td>{{ $order->id }}</td>
-                      <td class="fw-semibold">{{ $order->product->name ?? 'Deleted Product' }}</td>
+                      <td class="fw-semibold">
+                          @if($order->product)
+                              @if($order->product->sku)
+                                  <span class="text-muted small">[{{ $order->product->sku }}]</span>
+                              @endif
+                              {{ $order->product->name }}
+                          @else
+                              Deleted Product
+                          @endif
+                      </td>
                       <td>{{ $order->customer_name }}<br><small class="text-muted">{{ $order->customer_phone }}</small></td>
                       <td class="d-none d-xxl-table-cell small text-muted">{{ $order->customer_address }}</td>
                       <td>{{ $order->product_price }} EGP</td>
                       <td>{{ $order->selling_price }} EGP</td>
                       <td>{{ $order->stock }}</td>
+                      <td>
+                        @if($order->variant)
+                            <div class="mt-1">
+                                <span class="badge bg-secondary">
+                                    Size: {{ $order->variant->size ?? 'N/A' }} 
+                                    @if($order->variant->color)
+                                        | Color: {{ $order->variant->color }}
+                                    @endif
+                                </span>
+                            </div>
+                        @else
+                            <span class="text-muted small">No variant</span>
+                        @endif
+                      </td>
                       <td class="fw-bold text-success">+{{ $order->profit }} EGP</td>
                       <td>
                           @if($order->status == 'pending') 
                               <div class="d-flex align-items-center gap-2">
-                                  <span class="badge badge-soft-warning">Pending</span>
+                                  <span class="badge bg-warning text-dark">Pending</span>
                                   <form action="{{ route('merchant.orders.cancel', $order->id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من إلغاء هذا الأوردر وإعادة المخزون؟');">
                                       @csrf
                                       <button type="submit" class="btn btn-outline-danger btn-sm px-2 py-0" style="font-size: 11px; border-radius: 6px; line-height: 1.5;">
@@ -200,11 +224,27 @@
                                   </form>
                               </div>
                           @elseif($order->status == 'delivered') 
-                              <span class="badge badge-soft-success">Delivered</span>
+                              <span class="badge bg-success">Delivered</span>
                           @elseif($order->status == 'cancelled') 
-                              <span class="badge badge-soft-danger">Cancelled</span>
+                              <div>
+                                  <span class="badge bg-danger">Cancelled</span>
+                              </div>
+                              @if($order->cancellation_reason)
+                                  <div class="small text-danger mt-1" style="max-width: 200px; font-size: 11px;" title="{{ $order->cancellation_reason }}">
+                                      <i class="bi bi-info-circle me-1"></i> <strong>Reason:</strong> {{ Str::limit($order->cancellation_reason, 40) }}
+                                  </div>
+                              @endif
+                          @elseif($order->status == 'returned') 
+                              <div>
+                                  <span class="badge bg-secondary">Returned</span>
+                              </div>
+                              @if($order->cancellation_reason)
+                                  <div class="small text-danger mt-1" style="max-width: 200px; font-size: 11px;" title="{{ $order->cancellation_reason }}">
+                                      <i class="bi bi-info-circle me-1"></i> <strong>Reason:</strong> {{ Str::limit($order->cancellation_reason, 40) }}
+                                  </div>
+                              @endif
                           @else 
-                              <span class="badge badge-soft-secondary">{{ ucfirst($order->status) }}</span>
+                              <span class="badge bg-secondary">{{ ucfirst($order->status) }}</span>
                           @endif
                       </td>
                       <td>
@@ -217,7 +257,7 @@
                   </tr>
               @empty
                   <tr>
-                      <td colspan="10" class="text-center text-muted py-4">No orders placed yet.</td>
+                      <td colspan="11" class="text-center text-muted py-4">No orders placed yet.</td>
                   </tr>
               @endforelse
           </tbody>
@@ -261,8 +301,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             let filteredProducts = allProducts.filter(product => 
-                product.name.toLowerCase().includes(query)
-            ).slice(0, 20);
+                product.name.toLowerCase().includes(query) || 
+                (product.sku && product.sku.toLowerCase().includes(query))
+            ).slice(0, 25);
 
             if (filteredProducts.length > 0) {
                 resultsBox.style.display = 'block';
@@ -270,11 +311,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     let item = document.createElement('a');
                     item.href = '#';
                     item.className = 'list-group-item list-group-item-action small';
-                    item.innerHTML = `<strong>${product.name}</strong> — <span class="text-primary">${product.price} EGP</span> (Stock: ${product.stock})`;
+                    
+                    let skuText = product.sku ? `[${product.sku}]` : '';
+                    item.innerHTML = `<strong>${skuText} ${product.name}</strong> — <span class="text-primary">${product.price} EGP</span> (Stock: ${product.stock})`;
                     
                     item.addEventListener('click', function (e) {
                         e.preventDefault();
-                        searchInput.value = product.name;
+                        searchInput.value = `${product.sku ? product.sku + ' - ' : ''}${product.name}`;
                         productIdInput.value = product.id;
                         productPriceInput.value = product.price;
                         

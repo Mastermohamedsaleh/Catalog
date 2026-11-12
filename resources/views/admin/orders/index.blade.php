@@ -57,8 +57,10 @@
                     <th>Product</th>
                     <th>Prices (Cost / Sell)</th>
                     <th>Profit</th>
+                    <th>Size / Color</th>
                     <th>Status</th>
                     <th>Marketer</th>
+                    <th>Date</th>
                     <th class="text-end">Actions</th>
                 </tr>
             </thead>
@@ -71,7 +73,10 @@
                             <div class="small text-muted"><i class="bi bi-telephone me-1"></i>{{ $order->customer_phone }}</div>
                         </td>
                         <td>
-                            <span class="fw-semibold text-primary">{{ $order->product->name ?? '—' }}</span>
+                            <!-- اسم المنتج أصبح رابطاً قابلاً للنقر لفتح تفاصيل المنتج في تبويب جديد -->
+                            <a href="{{ route('shop.product.show', $order->product_id) }}" target="_blank" class="fw-semibold text-primary text-decoration-none" title="View Product Details">
+                                {{ $order->product->name ?? '—' }} <i class="bi bi-box-arrow-up-right small ms-1 opacity-75"></i>
+                            </a>
                         </td>
                         <td>
                             <div class="small text-muted">Cost: <span class="fw-semibold text-dark">{{ $order->product_price }} EGP</span></div>
@@ -80,6 +85,27 @@
                         <td>
                             <span class="badge badge-soft-success fw-bold">+{{ $order->profit }} EGP</span>
                         </td>
+
+                                    <td>
+    <span class="fw-bold">{{ $order->product->name }}</span>
+    
+    <!-- عرض المقاس واللون لو الأوردر له فاريانت -->
+    @if($order->variant)
+        <div class="mt-1">
+            <span class="badge bg-secondary">
+                المقاس: {{ $order->variant->size ?? 'N/A' }} 
+                @if($order->variant->color)
+                    | اللون: {{ $order->variant->color }}
+                @endif
+            </span>
+        </div>
+    @else
+        <div class="text-muted small">بدون مقاس/لون</div>
+    @endif
+</td>
+
+
+
                         <td>
                             @php
                                 $statusColors = [
@@ -92,11 +118,22 @@
                                 ];
                                 $color = $statusColors[$order->status] ?? 'secondary';
                             @endphp
-                            <span class="badge bg-{{ $color }} text-capitalize">{{ $order->status }}</span>
+                            <div>
+                                <span class="badge bg-{{ $color }} text-capitalize">{{ $order->status }}</span>
+                            </div>
+                            
+                            <!-- إظهار سبب الإلغاء أو الإرجاع مباشرة تحت الحالة في الجدول لو موجود -->
+                            @if(in_array($order->status, ['cancelled', 'returned']) && $order->cancellation_reason)
+                                <div class="small text-danger mt-1" style="max-width: 200px; font-size: 11px;" title="{{ $order->cancellation_reason }}">
+                                    <i class="bi bi-info-circle me-1"></i> <strong>السبب:</strong> {{ Str::limit($order->cancellation_reason, 40) }}
+                                </div>
+                            @endif
                         </td>
                         <td class="small text-muted">
                             {{ $order->user->name ?? 'System' }}
                         </td>
+                        <td class="small text-muted">
+{{ $order->user->created_at->diffForHumans() }}                        </td>
                         <td class="text-end text-nowrap">
                             <!-- زرار تغيير الحالة -->
                             <button class="btn btn-icon btn-light" 
@@ -141,34 +178,51 @@
     @foreach($orders as $order)
     <div class="modal fade" id="editOrderStatusModal{{ $order->id }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <form action="{{ route('admin.orders.updateStatus', $order->id) }}" method="POST" class="modal-content border-0 rounded-4 shadow-lg">
-                @csrf
-                @method('PUT')
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold">Update Order Status #{{ $order->id }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body text-start">
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Customer: <span class="text-muted">{{ $order->customer_name }}</span></label>
+           <form action="{{ route('admin.orders.updateStatus', $order->id) }}" method="POST" class="modal-content">
+            @csrf
+            @method('PUT')
+            
+            <div class="modal-header">
+                <h5 class="modal-title">تحديث حالة الطلب #{{ $order->id }}</h5>
+                <button type="button" class="btn-close ms-0 me-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body text-start">
+                <p class="small text-muted mb-3 text-end">العميل: <strong>{{ $order->customer_name }}</strong></p>
+
+                @if($order->status === 'cancelled')
+                    <div class="alert alert-danger small text-end">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> تنبيه: هذا الطلب ملغي من قبل التاجر، ولا يمكن تعديل حالته.
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Order Status <span class="text-danger">*</span></label>
-                        <select name="status" class="form-control text-capitalize" required>
-                            <option value="pending" {{ $order->status == 'pending' ? 'selected' : '' }}>Pending (معلق)</option>
-                            <option value="processing" {{ $order->status == 'processing' ? 'selected' : '' }}>Processing (قيد التجهيز)</option>
-                            <option value="shipped" {{ $order->status == 'shipped' ? 'selected' : '' }}>Shipped (تم الشحن)</option>
-                            <option value="delivered" {{ $order->status == 'delivered' ? 'selected' : '' }}>Delivered (تم التوصيل - سيتم إضافة الأرباح للمحفظة)</option>
-                            <option value="cancelled" {{ $order->status == 'cancelled' ? 'selected' : '' }}>Cancelled (ملغي)</option>
-                            <option value="returned" {{ $order->status == 'returned' ? 'selected' : '' }}>Returned (مرتجع)</option>
+                @else
+                    <!-- اختيار الحالة (Select) -->
+                    <div class="mb-3 text-end">
+                        <label class="form-label small fw-semibold">حالة الطلب <span class="text-danger">*</span></label>
+                        <select name="status" class="form-select" required>
+                            <option value="pending" {{ $order->status == 'pending' ? 'selected' : '' }}>قيد الانتظار (Pending)</option>
+                            <option value="processing" {{ $order->status == 'processing' ? 'selected' : '' }}>جاري التجهيز (Processing)</option>
+                            <option value="shipped" {{ $order->status == 'shipped' ? 'selected' : '' }}>تم الشحن (Shipped)</option>
+                            <option value="delivered" {{ $order->status == 'delivered' ? 'selected' : '' }}>تم التوصيل (Delivered)</option>
+                            <option value="cancelled" {{ $order->status == 'cancelled' ? 'selected' : '' }}>ملغي (Cancelled)</option>
+                            <option value="returned" {{ $order->status == 'returned' ? 'selected' : '' }}>مرتجع (Returned)</option>
                         </select>
                     </div>
-                </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save changes</button>
-                </div>
-            </form>
+
+                    <!-- سبب الإلغاء أو الإرجاع -->
+                    <div class="mb-3 text-end">
+                        <label class="form-label small fw-semibold">سبب الإلغاء أو الإرجاع <span class="text-danger">* (لو تم اختيار ملغي أو مرتجع)</span></label>
+                        <textarea name="cancellation_reason" class="form-control" rows="3" placeholder="اكتب السبب هنا...">{{ $order->cancellation_reason }}</textarea>
+                    </div>
+                @endif
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+                @if($order->status !== 'cancelled')
+                    <button type="submit" class="btn btn-primary btn-sm px-4">حفظ التغييرات</button>
+                @endif
+            </div>
+        </form>
         </div>
     </div>
     @endforeach
@@ -262,6 +316,21 @@ document.addEventListener('DOMContentLoaded', function () {
         form.addEventListener('submit', function (e) {
             if (!confirm('Are you sure you want to delete this order?')) {
                 e.preventDefault();
+            }
+        });
+    });
+
+    // إظهار وإخفاء صندوق سبب الإلغاء أو الإرجاع بذكاء حسب الحالة المتاحة
+    document.querySelectorAll('.order-status-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const orderId = this.getAttribute('data-order-id');
+            const reasonBox = document.querySelector('.reason-box-' + orderId);
+            if (this.value === 'cancelled' || this.value === 'returned') {
+                reasonBox.style.display = 'block';
+                reasonBox.querySelector('textarea').setAttribute('required', 'required');
+            } else {
+                reasonBox.style.display = 'none';
+                reasonBox.querySelector('textarea').removeAttribute('required');
             }
         });
     });

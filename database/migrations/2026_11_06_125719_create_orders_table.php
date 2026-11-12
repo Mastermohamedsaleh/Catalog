@@ -12,13 +12,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('orders', function (Blueprint $table) {
-$table->id();
+            $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete(); // المسوق أو التاجر اللي جاب الأوردر
             $table->foreignId('product_id')->constrained()->cascadeOnDelete(); // المنتج المطلوب
+            
+            // استخدام حقل عادي بدون Foreign Key مباشر لتجنب مشاكل الترتيب والـ errno 150
+            $table->unsignedBigInteger('product_variant_id')->nullable(); 
             
             $table->string('customer_name');
             $table->string('customer_phone');
             $table->text('customer_address');
+
+            $table->text('cancellation_reason')->nullable();
             
             $table->decimal('product_price', 10, 2);  
             $table->decimal('selling_price', 10, 2);  

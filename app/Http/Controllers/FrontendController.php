@@ -25,16 +25,24 @@ class FrontendController extends Controller
     // عرض القسم، الأقسام الفرعية، أو المنتجات حسب الهيكل الشجري
     public function showCategory($slug)
     {
-        // جلب القسم الحالي مع أقسامه الفرعية
+        // جلب القسم الحالي مع أقسامه الفرعية ومنتجاته
         $category = Category::with(['children', 'products' => function($q) {
             $q->where('is_active', 1);
         }])->where('slug', $slug)->firstOrFail();
 
         $products = collect();
 
-        // لو القسم ليس لديه أقسام فرعية، نجلب منتجاته مباشرة
+        // 1. لو القسم ليس لديه أقسام فرعية، نجلب منتجاته مباشرة
         if ($category->children->count() === 0) {
             $products = Product::where('category_id', $category->id)
+                               ->where('is_active', 1)
+                               ->latest()
+                               ->paginate(12);
+        } else {
+            // 2. لو القسم رئيسي وله أقسام فرعية، نجلب منتجات كل الأقسام الفرعية التابعة ليه دفعة واحدة!
+            $subCategoryIds = $category->children->pluck('id');
+            
+            $products = Product::whereIn('category_id', $subCategoryIds)
                                ->where('is_active', 1)
                                ->latest()
                                ->paginate(12);

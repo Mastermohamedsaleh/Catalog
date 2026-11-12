@@ -25,11 +25,12 @@ public function index(Request $request)
 {
     $query = Product::with('category', 'images', 'variants')->latest();
 
-    // تفعيل البحث بالاسم أو الوصف
+    // تفعيل البحث بالاسم، الوصف، أو الكود الفريد (SKU)
     if ($request->filled('search')) {
         $search = $request->search;
         $query->where(function($q) use ($search) {
             $q->where('name', 'like', "%{$search}%")
+              ->orWhere('sku', 'like', "%{$search}%")
               ->orWhere('description', 'like', "%{$search}%");
         });
     }
@@ -42,9 +43,10 @@ public function index(Request $request)
 
     public function store(Request $request)
     {
-$request->validate([
+        $request->validate([
             'category_id' => 'required|exists:categories,id',
-            'name' => 'required|string|max:255|unique:products,name',
+            'name'        => 'required|string|max:255|unique:products,name',
+            'sku'         => 'nullable|string|max:100|unique:products,sku', // التحقق من فريدة الكود
             'price'       => 'required|numeric|min:0',
             'stock'       => 'required|integer|min:0',
             'main_image'  => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', 
@@ -52,10 +54,11 @@ $request->validate([
             'video_url'   => 'nullable|mimes:mp4,mov,avi,wmv|max:10240',    
             'description' => 'nullable|string',
         ], [
-            'name.unique' => 'عذراً، هذا الاسم مسجل مسبقاً لمنتج آخر. يرجى اختيار اسم فريد.',
+            'name.unique'          => 'عذراً، هذا الاسم مسجل مسبقاً لمنتج آخر. يرجى اختيار اسم فريد.',
+            'sku.unique'           => 'كود المنتج (SKU) مستخدم من قبل، يرجى اختيار كود فريد.',
             'category_id.required' => 'يرجى اختيار القسم التابع له المنتج.',
-            'price.required' => 'سعر الجملة مطلوب.',
-            'stock.required' => 'كمية المخزون مطلوبة.',
+            'price.required'       => 'سعر الجملة مطلوب.',
+            'stock.required'       => 'كمية المخزون مطلوبة.',
         ]);
 
         // التحقق من تطابق مجموع الاستوك للمتغيرات مع الاستوك الأساسي لو المنتج مفعل له متغيرات
@@ -80,6 +83,12 @@ $request->validate([
             $videoPath = $this->mediaService->uploadFile($request->file('video_url'), 'products/videos');
         }
 
+        // توليد SKU فريد أوتوماتيك لو الأدمن مدخلوش
+        $sku = $request->filled('sku') ? $request->sku : 'PRD-' . strtoupper(Str::random(6));
+        while (Product::where('sku', $sku)->exists()) {
+            $sku = 'PRD-' . strtoupper(Str::random(6));
+        }
+
         // توليد Slug فريد لمنع خطأ التكرار Duplicate entry
         $slug = Str::slug($request->name);
         $originalSlug = $slug;
@@ -88,10 +97,11 @@ $request->validate([
             $slug = $originalSlug . '-' . $count++;
         }
 
-        // إنشاء المنتج الأساسي
+        // إنشاء المنتج الأساسي مع كود الـ SKU
         $product = Product::create([
             'category_id' => $request->category_id,
             'name'        => $request->name,
+            'sku'         => $sku, // حفظ كود المنتج الفريد
             'slug'        => $slug, // استخدام الـ Slug الفريد النظيف
             'price'       => $request->price,
             'stock'       => $request->stock,
@@ -133,9 +143,10 @@ $request->validate([
 
     public function update(Request $request, Product $product)
     {
-$request->validate([
+        $request->validate([
             'category_id' => 'required|exists:categories,id',
             'name'        => 'required|string|max:255|unique:products,name,' . $product->id,
+            'sku'         => 'nullable|string|max:100|unique:products,sku,' . $product->id,
             'price'       => 'required|numeric|min:0',
             'stock'       => 'required|integer|min:0',
             'main_image'  => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
@@ -143,10 +154,11 @@ $request->validate([
             'video_url'   => 'nullable|mimes:mp4,mov,avi,wmv|max:10240',
             'description' => 'nullable|string',
         ], [
-            'name.unique' => 'عذراً، هذا الاسم مسجل مسبقاً لمنتج آخر. يرجى اختيار اسم فريد.',
+            'name.unique'          => 'عذراً، هذا الاسم مسجل مسبقاً لمنتج آخر. يرجى اختيار اسم فريد.',
+            'sku.unique'           => 'كود المنتج مستخدم من قبل، يرجى اختيار كود فريد.',
             'category_id.required' => 'يرجى اختيار القسم التابع له المنتج.',
-            'price.required' => 'سعر الجملة مطلوب.',
-            'stock.required' => 'كمية المخزون مطلوبة.',
+            'price.required'       => 'سعر الجملة مطلوب.',
+            'stock.required'       => 'كمية المخزون مطلوبة.',
         ]);
 
         // التحقق من تطابق الاستوك أثناء التعديل أيضاً
@@ -182,6 +194,7 @@ $request->validate([
         $product->update([
             'category_id' => $request->category_id,
             'name'        => $request->name,
+            'sku'         => $request->filled('sku') ? $request->sku : $product->sku, // تحديث أو الحفاظ على الكود القديم
             'slug'        => $slug, // الـ Slug المحدث الفريد
             'price'       => $request->price,
             'stock'       => $request->stock,
@@ -251,18 +264,17 @@ $request->validate([
         return redirect()->route('admin.products.index')->with('success', 'تم حذف المنتج وملفاته ومتغيراته بنجاح.');
     }
 
-// Delete One Image from Galley
+    // Delete One Image from Galley
     public function destroyImage(ProductImage $image)
-{
-    // حذف الملف من التخزين
-    if ($image->image_path) {
-        $this->mediaService->deleteFile($image->image_path);
+    {
+        // حذف الملف من التخزين
+        if ($image->image_path) {
+            $this->mediaService->deleteFile($image->image_path);
+        }
+        
+        // حذف السجل من قاعدة البيانات
+        $image->delete();
+
+        return back()->with('success', 'تم حذف الصورة من المعرض بنجاح.');
     }
-    
-    // حذف السجل من قاعدة البيانات
-    $image->delete();
-
-    return back()->with('success', 'تم حذف الصورة من المعرض بنجاح.');
-}
-
 }

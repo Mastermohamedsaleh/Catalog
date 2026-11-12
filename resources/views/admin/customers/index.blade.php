@@ -44,6 +44,7 @@
                     <th>#</th>
                     <th>Customer Name</th>
                     <th>Email Address</th>
+                    <th>Phone Number</th>
                     <th>Joined Date</th>
                     <th class="text-end">Actions</th>
                 </tr>
@@ -64,6 +65,7 @@
                             </div>
                         </td>
                         <td><code>{{ $customer->email }}</code></td>
+                        <td><code>{{ $customer->phone }}</code></td>
                         <td>{{ $customer->created_at->format('Y-m-d') }}</td>
                         <td class="text-end text-nowrap">
                             <!-- زرار إعادة تعيين كلمة السر -->

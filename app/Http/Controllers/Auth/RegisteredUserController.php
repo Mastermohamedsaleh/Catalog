@@ -30,10 +30,10 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        // 1. تطبيق شروط الأمان الصارمة على الباسورد
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'phone' => ['required', 'string', 'max:20', 'unique:'.User::class], // <-- إضافة التحقق من رقم الهاتف
             'password' => [
                 'required', 
                 'confirmed', 
@@ -41,12 +41,15 @@ class RegisteredUserController extends Controller
                     ->letters()
                     ->numbers()
             ],
+        ], [
+            'phone.required' => 'رقم الهاتف مطلوب.',
+            'phone.unique'   => 'رقم الهاتف مستخدم من قبل، يرجى استخدام رقم آخر.',
         ]);
 
-        // 2. إنشاء المستخدم (الدور بيتاخد افتراضياً `app_client_usr` من الدาตา بيز)
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'phone' => $request->phone, // <-- حفظ رقم الهاتف هنا
             'password' => Hash::make($request->password),
         ]);
 
@@ -54,7 +57,6 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        // 3. التوجيه الذكي حسب الـ Role (لو أدمن أو يوزر عادي)
         if ($user->isAdmin()) {
             return redirect()->intended(route('admin.dashboard'));
         }
