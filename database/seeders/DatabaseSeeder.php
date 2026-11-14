@@ -8,6 +8,8 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Order;
+use App\Models\Wallet;
+use App\Models\WalletTransaction;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -149,7 +151,7 @@ class DatabaseSeeder extends Seeder
             $qty = rand(1, 3);
             $sellingPrice = $product->price + rand(50, 300);
             
-            // حساب الربح بالشكل السليم والصحيح
+            // تصحيح معادلة الأرباح بالرمز الصحيح (-)
             $profit = ($sellingPrice - $product->price) * $qty;
 
             $cancellationReason = null;
@@ -160,7 +162,7 @@ class DatabaseSeeder extends Seeder
             Order::create([
                 'user_id' => $merchant->id,
                 'product_id' => $product->id,
-                'product_variant_id' => $variant ? $variant->id : null, // ربط المقاس المختار بالأوردر
+                'product_variant_id' => $variant ? $variant->id : null,
                 'customer_name' => "Customer Test {$o}",
                 'customer_phone' => '01' . rand(100000000, 999999999),
                 'customer_address' => 'Cairo, Egypt - Street ' . $o,
@@ -172,6 +174,39 @@ class DatabaseSeeder extends Seeder
                 'cancellation_reason' => $cancellationReason,
                 'is_paid_to_wallet' => ($status === 'delivered'),
             ]);
+        }
+
+        // 6. تعبئة جداول المحافظ (Wallets) والمعاملات المالية (WalletTransactions) تلقائياً للأوردرات المسلمة
+        $deliveredOrders = Order::where('status', 'delivered')->get()->groupBy('user_id');
+
+        foreach ($deliveredOrders as $userId => $orders) {
+            $totalProfit = $orders->sum('profit');
+
+            if ($totalProfit > 0) {
+                $wallet = Wallet::firstOrCreate(
+                    ['user_id' => $userId],
+                    ['balance' => $totalProfit]
+                );
+
+                if ($wallet->wasRecentlyCreated === false) {
+                    $wallet->balance = $totalProfit;
+                    $wallet->save();
+                }
+
+                foreach ($orders as $order) {
+                    WalletTransaction::firstOrCreate(
+                        [
+                            'wallet_id' => $wallet->id,
+                            'order_id' => $order->id,
+                        ],
+                        [
+                            'type' => 'credit',
+                            'amount' => $order->profit,
+                            'description' => "أرباح تسليم الطلب رقم #{$order->id}"
+                        ]
+                    );
+                }
+            }
         }
     }
 }

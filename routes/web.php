@@ -14,16 +14,10 @@ use App\Http\Controllers\Admin\OrderController;
 
 use App\Models\Category;
 
-// Route::get('/', function () {
-//     return view('auth.login');
-// })->name('catalog.index'); 
-
 Route::get('/', function () {
     $categories = Category::withCount('products')->get();    
     return view('welcome', compact('categories'));
 })->name('catalog.index');
-
-
 
 // مسارات الملف الشخصي (Profile)
 Route::middleware('auth')->group(function () {
@@ -37,10 +31,10 @@ Route::middleware(['auth', AdminMiddleware::class])->prefix('admin')->name('admi
     
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-// استثنينا الـ show من الـ resource عشان نعمله بشكل صريح ومضبوط بالـ admin prefix
-Route::resource('categories', CategoryController::class)
-    ->except(['create', 'show', 'edit'])
-    ->parameters(['categories' => 'category:slug']);
+    // استثنينا الـ show من الـ resource عشان نعمله بشكل صريح ومضبوط بالـ admin prefix
+    Route::resource('categories', CategoryController::class)
+        ->except(['create', 'show', 'edit'])
+        ->parameters(['categories' => 'category:slug']);
 
     Route::post('/customers/{customer}/reset-password', [CustomerController::class, 'resetPassword'])->name('customers.resetPassword');
 
@@ -49,15 +43,19 @@ Route::resource('categories', CategoryController::class)
 
     Route::resource('products', ProductController::class)->except(['create', 'show', 'edit']);
 
-
     // Delete One image from gallery 
-Route::delete('/product-images/{image}', [ProductController::class, 'destroyImage'])->name('products.images.destroy');
-
+    Route::delete('/product-images/{image}', [ProductController::class, 'destroyImage'])->name('products.images.destroy');
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
-    Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+    
+    // تم حذف مسار الـ store الخاص بالأدمن بناءً على قرارنا بخصوص الإدخال اليدوي
     Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
     Route::delete('/orders/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
+
+    // تم تصحيح الـ Name هنا ليكون صحيحاً بدون تكرار admin.
+    Route::put('/orders/{order}/reason', [OrderController::class, 'updateReason'])->name('orders.updateReason');
+
+    Route::post('/customers/{customer}/zero-wallet', [CustomerController::class, 'zeroWallet'])->name('customers.zeroWallet');
 });
 
 // مسارات السوبر أدمن فقط
@@ -65,59 +63,26 @@ Route::middleware(['auth', SuperAdminMiddleware::class])->prefix('admin')->name(
     Route::resource('admins', AdminUserController::class)->except(['create', 'show', 'edit']);
 });
 
-// front end
-
-// مسار عرض القسم للعامة أو الزوار
-// Route::get('categories/{category:slug}', [CategoryController::class, 'show'])->name('categories.show');
-
-
-
-
 // Frontend
 Route::middleware(['auth'])->group(function () {
-
-
     Route::get('/categories', [FrontendController::class, 'allCategories'])->name('shop.categories.index');
 
-
-    // عرض تفاصيل القسم (سواء رئيسي أو فرعي) والمنتجات اللي جواها
+    // عرض تفاصيل القسم والمنتجات اللي جواها
     Route::get('/category/{slug}', [FrontendController::class, 'showCategory'])->name('shop.category');
     
-    // صفحة تفاصيل المنتج الفردي (صور، فديوهات، تفاصيل)
+    // صفحة تفاصيل المنتج الفردي
     Route::get('/product/{id}', [FrontendController::class, 'showProduct'])->name('shop.product.show');
 });
 
-
-
-
+// Merchant Routes
 Route::middleware(['auth'])->prefix('merchant')->name('merchant.')->group(function () {
-    // صفحة الأوردرات ونموذج إضافة أوردر جديد
     Route::get('/orders', [App\Http\Controllers\Merchant\OrderController::class, 'index'])->name('orders.index');
-    
-    // حفظ الأوردر الجديد في الداتا بيز وخصم الاستوك
     Route::post('/orders', [App\Http\Controllers\Merchant\OrderController::class, 'store'])->name('orders.store');
-    
-    // مسار البحث اللحظي عن المنتجات والمقاسات (AJAX Search)
     Route::get('/products-search', [App\Http\Controllers\Merchant\OrderController::class, 'searchProducts'])->name('products.search');
-    
-
     Route::post('/orders/{order}/cancel', [App\Http\Controllers\Merchant\OrderController::class, 'cancel'])->name('orders.cancel');
 
-
-
-
-    // صفحة المحفظة
     Route::get('/wallet', [App\Http\Controllers\Merchant\WalletController::class, 'index'])->name('wallet');
-    
     Route::post('/wallet/withdraw', [App\Http\Controllers\Merchant\WalletController::class, 'withdraw'])->name('wallet.withdraw');
-
-
-
 });
-
-
-
-
-
 
 require __DIR__.'/auth.php';

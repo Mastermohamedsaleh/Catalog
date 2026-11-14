@@ -129,12 +129,12 @@
                       <td>{{ $order->product->name ?? 'Deleted Product' }}</td>
                       <td class="d-none d-md-table-cell">{{ $order->customer_name }}</td>
                       <td>
-                          @if($order->status == 'pending') <span class="badge badge-soft-warning">Pending</span>
-                          @elseif($order->status == 'processing') <span class="badge badge-soft-info">Processing</span>
-                          @elseif($order->status == 'shipped') <span class="badge badge-soft-primary">Shipped</span>
-                          @elseif($order->status == 'delivered') <span class="badge badge-soft-success">Delivered</span>
-                          @elseif($order->status == 'cancelled') <span class="badge badge-soft-danger">Cancelled</span>
-                          @elseif($order->status == 'returned') <span class="badge badge-soft-secondary">Returned</span>
+                          @if($order->status == 'pending') <span class="badge badge-soft-warning text-dark">Pending</span>
+                          @elseif($order->status == 'processing') <span class="badge badge-soft-info text-dark">Processing</span>
+                          @elseif($order->status == 'shipped') <span class="badge badge-soft-primary text-dark">Shipped</span>
+                          @elseif($order->status == 'delivered') <span class="badge badge-soft-success text-dark">Delivered</span>
+                          @elseif($order->status == 'cancelled') <span class="badge badge-soft-danger text-dark">Cancelled</span>
+                          @elseif($order->status == 'returned') <span class="badge badge-soft-secondary text-dark">Returned</span>
                           @else <span class="badge badge-soft-secondary">{{ ucfirst($order->status) }}</span>
                           @endif
                       </td>

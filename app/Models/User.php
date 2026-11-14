@@ -48,6 +48,13 @@ class User extends Authenticatable
         ];
     }
 
+
+    public function wallet()
+{
+    return $this->hasOne(Wallet::class);
+}
+
+
     public function isAdmin(): bool
     {
         // تم تعديلها لتتوافق مع الـ role 'admin' اللي مسجل في الداتا بيز والـ Seeder

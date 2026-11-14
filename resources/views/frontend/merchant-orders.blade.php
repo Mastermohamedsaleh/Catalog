@@ -79,7 +79,7 @@
       <p class="text-muted small mb-4">Fill in your customer's data. The order is sent to the admin for confirmation.</p>
 
       <div class="row g-3">
-        <!-- البحث عن المنتج (بالاسم أو كود الـ SKU فقط) -->
+        <!-- البحث عن المنتج -->
         <div class="col-md-6 position-relative">
           <label for="productSearch" class="form-label small fw-semibold">Search Product (Name or Code) <span class="text-danger">*</span></label>
           <input type="text" class="form-control" id="productSearch" placeholder="Type product name or Code..." autocomplete="off" required>
@@ -88,7 +88,7 @@
           <div class="invalid-feedback">Please choose a valid product from the list.</div>
         </div>
 
-        <!-- اختيار المقاس (يظهر فقط لو المنتج له Variants) -->
+        <!-- اختيار المقاس -->
         <div class="col-md-6" id="variantContainer" style="display: none;">
           <label for="variantSelect" class="form-label small fw-semibold">Select Size / Variant <span class="text-danger">*</span></label>
           <select class="form-select" id="variantSelect" name="product_variant_id">
@@ -96,7 +96,7 @@
           </select>
         </div>
 
-        <!-- الكمية (Quantity) -->
+        <!-- الكمية -->
         <div class="col-6 col-md-3">
           <label for="qty" class="form-label small fw-semibold">Quantity <span class="text-danger">*</span></label>
           <input type="number" class="form-control" id="qty" name="stock" min="1" step="1" value="1" required>
@@ -104,20 +104,20 @@
           <div class="invalid-feedback">Enter a valid quantity within available stock.</div>
         </div>
 
-        <!-- سعر المنتج الأساسي (التكلفة - Readonly) -->
+        <!-- سعر المنتج الأساسي -->
         <div class="col-6 col-md-3">
           <label for="productPrice" class="form-label small fw-semibold">Product price <span class="text-muted fw-normal">(cost)</span></label>
           <div class="input-group"><input type="number" class="form-control bg-light" id="productPrice" name="product_price" readonly tabindex="-1" placeholder="0"><span class="input-group-text">EGP</span></div>
         </div>
 
-        <!-- سعر البيع للعميل (Selling Price) -->
+        <!-- سعر البيع للعميل -->
         <div class="col-md-4">
           <label for="sellingPrice" class="form-label small fw-semibold">Selling price <span class="text-muted fw-normal">(per item)</span> <span class="text-danger">*</span></label>
           <div class="input-group"><input type="number" class="form-control" id="sellingPrice" name="selling_price" min="0" step="0.01" required placeholder="0.00"><span class="input-group-text">EGP</span></div>
           <div class="invalid-feedback">Selling price must be at least the product price.</div>
         </div>
 
-        <!-- الربح المتوقع (Auto Profit) -->
+        <!-- الربح المتوقع -->
         <div class="col-md-4">
           <label class="form-label small fw-semibold">Your profit <span class="text-muted fw-normal">(auto)</span></label>
           <div class="border rounded-3 px-3 py-2 bg-light d-flex align-items-center justify-content-between" style="min-height:44px">
@@ -158,7 +158,7 @@
     <!-- ============ MY ORDERS TABLE ============ -->
     <div class="card-soft">
       <div class="p-3 p-lg-4 pb-2 d-flex flex-wrap gap-2 justify-content-between align-items-center">
-        <h2 class="h6 fw-bold mb-0">My orders <span class="badge bg-primary ms-1" id="ordersCount">{{ $orders->count() }}</span></h2>
+        <h2 class="h6 fw-bold mb-0">My orders <span class="badge bg-primary ms-1" id="ordersCount">{{ isset($orders) && method_exists($orders, 'total') ? $orders->total() : $orders->count() }}</span></h2>
         <div class="input-icon" style="min-width:240px"><i class="bi bi-search"></i><input type="search" class="form-control form-control-sm py-2" placeholder="Search orders…" data-filter="#ordersTable"></div>
       </div>
       <div class="table-responsive">
@@ -181,7 +181,7 @@
           <tbody>
               @forelse($orders as $order)
                   <tr>
-                      <td>{{ $order->id }}</td>
+                      <td>{{ isset($orders->firstItem) ? $orders->firstItem() + $loop->index : $loop->iteration }}</td>
                       <td class="fw-semibold">
                           @if($order->product)
                               @if($order->product->sku)
@@ -230,8 +230,11 @@
                                   <span class="badge bg-danger">Cancelled</span>
                               </div>
                               @if($order->cancellation_reason)
-                                  <div class="small text-danger mt-1" style="max-width: 200px; font-size: 11px;" title="{{ $order->cancellation_reason }}">
-                                      <i class="bi bi-info-circle me-1"></i> <strong>Reason:</strong> {{ Str::limit($order->cancellation_reason, 40) }}
+                                  <div class="mt-1">
+                                      <button type="button" class="btn btn-sm btn-link text-danger p-0 text-decoration-none" 
+                                              data-bs-toggle="modal" data-bs-target="#merchantReasonModal{{ $order->id }}" style="font-size: 11px;">
+                                          <i class="bi bi-info-circle me-1"></i> View Reason
+                                      </button>
                                   </div>
                               @endif
                           @elseif($order->status == 'returned') 
@@ -239,8 +242,11 @@
                                   <span class="badge bg-secondary">Returned</span>
                               </div>
                               @if($order->cancellation_reason)
-                                  <div class="small text-danger mt-1" style="max-width: 200px; font-size: 11px;" title="{{ $order->cancellation_reason }}">
-                                      <i class="bi bi-info-circle me-1"></i> <strong>Reason:</strong> {{ Str::limit($order->cancellation_reason, 40) }}
+                                  <div class="mt-1">
+                                      <button type="button" class="btn btn-sm btn-link text-danger p-0 text-decoration-none" 
+                                              data-bs-toggle="modal" data-bs-target="#merchantReasonModal{{ $order->id }}" style="font-size: 11px;">
+                                          <i class="bi bi-info-circle me-1"></i> View Reason
+                                      </button>
                                   </div>
                               @endif
                           @else 
@@ -261,18 +267,56 @@
                   </tr>
               @endforelse
           </tbody>
-        </table>
+      </table>
       </div>
+
+      <!-- Pagination Links (آمنة مع الـ Collection والـ Paginator) -->
+      @if(isset($orders) && method_exists($orders, 'hasPages') && $orders->hasPages())
+          <div class="p-3 d-flex justify-content-between align-items-center small text-muted border-top">
+              <span>Showing {{ $orders->firstItem() ?? 0 }}–{{ $orders->lastItem() ?? 0 }} of {{ $orders->total() }}</span>
+              <div>
+                  {{ $orders->appends(request()->query())->links() }}
+              </div>
+          </div>
+      @endif
     </div>
   </main>
 </div>
+
+<!-- ============ مودالات عرض سبب الإلغاء/الإرجاع للتاجر (Read-Only) ============ -->
+@if(isset($orders))
+    @foreach($orders as $order)
+        @if(in_array($order->status, ['cancelled', 'returned']) && $order->cancellation_reason)
+        <div class="modal fade" id="merchantReasonModal{{ $order->id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+<h5 class="modal-title">سبب الـ {{ $order->status == 'cancelled' ? 'إلغاء' : 'إرجاع' }} للطلب #{{ $order->id }}</h5>                        <button type="button" class="btn-close ms-0 me-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-start">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted">Detailed Reason:</label>
+                            <div class="p-3 bg-light rounded border text-dark" style="white-space: pre-line; line-height: 1.6;">
+                                {{ $order->cancellation_reason }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+    @endforeach
+@endif
 
 <!-- ============ Scripts ============ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ asset('assets/js/app.js') }}"></script>
 
 <script>
-    const allProducts = @json($products);
+    const allProducts = @json($products ?? []);
 </script>
 
 <script>
@@ -353,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.addEventListener('click', function(e) {
-        if (!searchInput.contains(e.target) && !resultsBox.contains(e.target)) {
+        if (searchInput && resultsBox && !searchInput.contains(e.target) && !resultsBox.contains(e.target)) {
             resultsBox.style.display = 'none';
         }
     });

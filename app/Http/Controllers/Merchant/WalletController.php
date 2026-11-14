@@ -7,7 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\Order;
-use App\Models\User;
+use App\Models\Wallet;
+use App\Models\WalletTransaction;
 
 class WalletController extends Controller
 {
@@ -15,19 +16,15 @@ class WalletController extends Controller
     {
         $merchant = Auth::user();
 
-        // 1. حساب الرصيد المتاح بدقة من الأوردرات المسلمة (delivered)
-        $availableBalance = Order::where('user_id', $merchant->id)
-            ->where('status', 'delivered')
-            ->sum('profit');
+        // 1. جلب الرصيد المتاح من جدول المحافظ مباشرة (أداء صاروخي 🚀)
+        $wallet = Wallet::firstOrCreate(
+            ['user_id' => $merchant->id],
+            ['balance' => 0]
+        );
+        
+        $availableBalance = $wallet->balance;
 
-        // التحقق من حقل المحفظة في جدول الـ users لضمان الأمان
-        if (isset($merchant->wallet) && $merchant->wallet > 0) {
-            $availableBalance = max($merchant->wallet, $availableBalance);
-        } elseif (isset($merchant->wallet_balance) && $merchant->wallet_balance > 0) {
-            $availableBalance = max($merchant->wallet_balance, $availableBalance);
-        }
-
-        // 2. الأرباح المعلقة (Pending, Processing, Shipped)
+        // 2. الأرباح المعلقة (Pending, Processing, Shipped) من جدول الأوردرات
         $pendingProfit = Order::where('user_id', $merchant->id)
             ->whereIn('status', ['pending', 'processing', 'shipped'])
             ->sum('profit');
@@ -42,7 +39,7 @@ class WalletController extends Controller
             ->whereIn('status', ['cancelled', 'returned'])
             ->count();
 
-        // 5. جلب سجل المعاملات والأوردرات الخاصة بالتاجر
+        // 5. جلب سجل الأوردرات
         $orders = Order::where('user_id', $merchant->id)
             ->with('product')
             ->latest()
@@ -75,30 +72,27 @@ class WalletController extends Controller
 
         DB::beginTransaction();
         try {
-            // قفل صف المستخدم لمنع تضارب العمليات (Race Condition)
-            $lockedMerchant = User::where('id', $merchant->id)->lockForUpdate()->first();
+            // قفل محفظة التاجر لمنع أي تضارب (Race Condition)
+            $wallet = Wallet::where('user_id', $merchant->id)->lockForUpdate()->first();
 
-            // حساب الرصيد المتاح بدقة وقت الطلب
-            $availableBalance = Order::where('user_id', $lockedMerchant->id)
-                ->where('status', 'delivered')
-                ->sum('profit');
-
-            if ($availableBalance <= 0) {
+            if (!$wallet || $wallet->balance <= 0) {
                 DB::rollBack();
                 return back()->withErrors(['error' => 'عذراً، لا يوجد رصيد متاح للسحب حالياً!']);
             }
 
-            // 1. تصفير رصيد المحفظة في جدول الـ users بأمان تام
-            if (isset($lockedMerchant->wallet)) {
-                $lockedMerchant->wallet = 0;
-            }
-            if (isset($lockedMerchant->wallet_balance)) {
-                $lockedMerchant->wallet_balance = 0;
-            }
-            $lockedMerchant->save();
+            $amountToWithdraw = $wallet->balance;
 
-            // 2. تحديث الأوردرات المسلمة التي تم سحب أرباحها (أو وضع علامة أنها سُحبت لكي لا تتكرر في الحساب)
-            // (اختياري: لو حابب تحدد جدول مخصص لطلبات السحب Withdrawals، أو تفضل معتمد على تصفير الخزنة مباشرتاً)
+            // 1. تسجيل معاملة السحب في سجل الحركات المالية (Audit Trail)
+            WalletTransaction::create([
+                'wallet_id' => $wallet->id,
+                'type' => 'debit',
+                'amount' => $amountToWithdraw,
+                'description' => "سحب أرباح أونلاين على رقم فودافون كاش: " . $request->phone
+            ]);
+
+            // 2. تصفير رصيد المحفظة فوراً
+            $wallet->balance = 0;
+            $wallet->save();
 
             DB::commit();
             return back()->with('success', 'تم تقديم طلب سحب الأرباح بنجاح، وتصفير الخزنة في انتظار التحويل على رقم فودافون كاش الخاص بك!');

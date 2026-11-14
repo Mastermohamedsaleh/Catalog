@@ -16,7 +16,6 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete(); // المسوق أو التاجر اللي جاب الأوردر
             $table->foreignId('product_id')->constrained()->cascadeOnDelete(); // المنتج المطلوب
             
-            // استخدام حقل عادي بدون Foreign Key مباشر لتجنب مشاكل الترتيب والـ errno 150
             $table->unsignedBigInteger('product_variant_id')->nullable(); 
             
             $table->string('customer_name');

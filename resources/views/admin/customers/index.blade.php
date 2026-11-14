@@ -45,6 +45,7 @@
                     <th>Customer Name</th>
                     <th>Email Address</th>
                     <th>Phone Number</th>
+                    <th>Wallet Balance</th> <!-- عمود الرصيد الجديد -->
                     <th>Joined Date</th>
                     <th class="text-end">Actions</th>
                 </tr>
@@ -58,7 +59,6 @@
                                 <span class="thumb g{{ ($loop->index % 6) + 1 }}" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #e9ecef; font-weight: bold;">
                                     {{ strtoupper(substr($customer->name, 0, 1)) }}
                                 </span>
-                                <!-- الضغط على اسم التاجر ينقلك مباشرة لأوردراته (افترضنا مسار الأوردرات للأدمن مع فلتر بالـ user_id) -->
                                 <a href="{{ route('admin.orders.index', ['user_id' => $customer->id]) }}" class="fw-semibold text-decoration-none text-dark hover-primary" title="View customer orders">
                                     {{ $customer->name }} <i class="bi bi-box-arrow-up-right small text-muted ms-1"></i>
                                 </a>
@@ -66,8 +66,25 @@
                         </td>
                         <td><code>{{ $customer->email }}</code></td>
                         <td><code>{{ $customer->phone }}</code></td>
+                        
+                        <!-- عرض الرصيد المتاح من جدول المحافظ مباشرة (أداء سريع جداً) -->
+                        <td>
+                            <span class="fw-bold text-success">
+                                {{ $customer->wallet->balance ?? 0 }} EGP
+                            </span>
+                        </td>
+
                         <td>{{ $customer->created_at->format('Y-m-d') }}</td>
+                        
                         <td class="text-end text-nowrap">
+                            <!-- زرار تصفير الخزنة / سحب الأرباح -->
+                            <form action="{{ route('admin.customers.zeroWallet', $customer->id) }}" method="POST" class="d-inline zero-wallet-form">
+                                @csrf
+                                <button type="submit" class="btn btn-outline-success btn-sm me-1" title="Zero Wallet & Withdraw" {{ ($customer->wallet->balance ?? 0) <= 0 ? 'disabled' : '' }}>
+                                    <i class="bi bi-cash-coin"></i> Zero Wallet
+                                </button>
+                            </form>
+
                             <!-- زرار إعادة تعيين كلمة السر -->
                             <form action="{{ route('admin.customers.resetPassword', $customer->id) }}" method="POST" class="d-inline reset-form">
                                 @csrf
@@ -88,7 +105,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">No regular customers found.</td>
+                        <td colspan="7" class="text-center text-muted py-4">No regular customers found.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -123,6 +140,15 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.reset-form').forEach(form => {
         form.addEventListener('submit', function (e) {
             if (!confirm('Are you sure you want to reset this customer password?')) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    // تأكيد تصفير المحفظة
+    document.querySelectorAll('.zero-wallet-form').forEach(form => {
+        form.addEventListener('submit', function (e) {
+            if (!confirm('هل أنت متأكد من تصفير محفظة هذا التاجر وسحب الأرباح بالكامل؟')) {
                 e.preventDefault();
             }
         });
